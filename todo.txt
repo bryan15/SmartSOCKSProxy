@@ -1,0 +1,18 @@
+- handle ssh host key changed or not present
+- for DNS lookup, 
+  - sort through IPv4 and IPv6 results
+  - have a policy about which to try first
+  - itterate through addresses sequentially, use first one that connects successfully
+
+- "Debug mode"  
+  - for normal users, print out connections - one per line - and clearly describe how they were routed and why
+    - this is to cut down on false support requests. self-help
+- Named socket connections
+  - part of the above, let the user specify multiple SOCKS5 proxy ports
+    - separate ports
+    - named, with name showing up in log
+    - different debug levels for each. 
+    - allows people to separate web traffic from, say, java apps
+- override to disable routing and force all connections to resolve locally.
+
+

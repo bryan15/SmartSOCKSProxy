@@ -1,0 +1,13 @@
+#!/bin/bash
+
+PORT_FORWARD=""
+WORKING_DIR="$HOME/simplesocksproxy"
+
+pkill simplesocksproxy
+ps ax | grep -v grep | grep 'ssh -D' | awk '{ print $1 }' | xargs -n 1000 kill -9
+$WORKING_DIR/simplesocksproxy \
+  -v -v -v \
+  -d \
+  -l $WORKING_DIR/proxy.log \
+  $PORT_FORWARD
+

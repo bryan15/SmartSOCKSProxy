@@ -1,0 +1,31 @@
+<html>
+<head>
+<title>SmartSOCKSProxy Status</title>
+<link rel="stylesheet" type="text/css; ; charset=utf-8" href="tabs.css">
+</head>
+<body>
+
+<!-- Element where our application lives -->
+<div id="root"></div>
+
+<!-- 
+   React without a build step 
+       https://medium.com/@chrislewisdev/react-without-npm-babel-or-webpack-1e9a6049714
+       https://shinglyu.com/web/2018/02/08/minimal-react-js-without-a-build-step-updated.html
+   Update these with "make react" from the main repo dir.
+ -->
+<script src="react.js"></script>
+<script src="react-dom.js"></script>
+<script src="babel.min.js"></script>
+
+<!-- type="text/babel" activates babel.min.js. Otherwise you get a Javascript error "Uncaught SyntaxError: Unexpected token <" -->
+<script type="text/babel" src="SmartSOCKSProxy.js"></script>
+<script type="text/babel" src="ProxyInstanceTab.js"></script>
+<script type="text/babel" src="ProxyInstance.js"></script>
+<script type="text/babel" src="Connection.js"></script>
+<script type="text/babel" src="Service.js"></script>
+
+<!-- And finally... launch our application -->
+<script type="text/babel" src="root.js"></script>
+
+</body></html>
