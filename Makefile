@@ -1,3 +1,6 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 # WARNING
 # No makefile magic here. I kept it simple to keep it simple. 
 # Fully aware of http://make.mad-scientist.net/papers/advanced-auto-dependency-generation/ 

@@ -1,3 +1,6 @@
+// Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 #ifndef SOCKS5_CLIENT_H
 #define SOCKS5_CLIENT_H
 

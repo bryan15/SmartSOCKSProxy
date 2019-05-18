@@ -1,3 +1,6 @@
+// Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 #ifndef SSH_TUNNEL_H
 #define SSH_TUNNEL_H
 

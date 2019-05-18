@@ -1,3 +1,6 @@
+// Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 #ifndef PROXY_INSTANCE_H
 #define PROXY_INSTANCE_H
 

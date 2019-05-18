@@ -1,3 +1,6 @@
+// Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 #include<stdio.h>
 #include<unistd.h>
 #include<ctype.h> // for isprint()
