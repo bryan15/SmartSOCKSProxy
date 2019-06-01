@@ -4,9 +4,10 @@
 #ifndef SERVER_H
 #define SERVER_H
 
+#include"log_file.h"
 #include"proxy_instance.h"
 #include"ssh_tunnel.h"
 
-int server(proxy_instance* proxy_instance_list, ssh_tunnel* ssh_tunnel_list);
+int server(log_file* log_file_list, proxy_instance* proxy_instance_list, ssh_tunnel* ssh_tunnel_list);
 
 #endif // SERVER_H

@@ -10,6 +10,8 @@
 pthread_key_t thread_local_key_proxy_instance;
 pthread_key_t thread_local_key_service;
 pthread_key_t thread_local_key_client_connection;
+pthread_key_t thread_local_key_ssh_tunnel;
+pthread_key_t thread_local_key_log_config;
 
 int thread_local_init_key(pthread_key_t* key) {
   int rc = 0;
@@ -27,6 +29,8 @@ int thread_local_init(void) {
   if (rc == 0) {  rc=thread_local_init_key(&thread_local_key_proxy_instance);  }
   if (rc == 0) {  rc=thread_local_init_key(&thread_local_key_service);  }
   if (rc == 0) {  rc=thread_local_init_key(&thread_local_key_client_connection);  }
+  if (rc == 0) {  rc=thread_local_init_key(&thread_local_key_ssh_tunnel);  }
+  if (rc == 0) {  rc=thread_local_init_key(&thread_local_key_log_config);  }
   return rc;
 }
 
@@ -52,5 +56,21 @@ int thread_local_set_client_connection(client_connection *inst) {
 
 client_connection* thread_local_get_client_connection(void) {
   return pthread_getspecific(thread_local_key_client_connection);
+}
+
+int thread_local_set_ssh_tunnel(ssh_tunnel *ssh) {
+  return pthread_setspecific(thread_local_key_proxy_instance,ssh);
+}
+
+ssh_tunnel* thread_local_get_ssh_tunnel(void) {
+  return pthread_getspecific(thread_local_key_ssh_tunnel);
+}
+
+int thread_local_set_log_config(log_config *conf) {
+  return pthread_setspecific(thread_local_key_proxy_instance,conf);
+}
+
+log_config* thread_local_get_log_config(void) {
+  return pthread_getspecific(thread_local_key_log_config);
 }
 

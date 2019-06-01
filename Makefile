@@ -16,7 +16,8 @@ CC=gcc
 CFLAGS=
 LDFLAGS=
 
-OBJFILES = log.o string2.o server.o client_connection.o config_file.o \
+OBJFILES = log.o log_level.o log_file.o\
+        string2.o server.o client_connection.o config_file.o \
         service.o service_http.o service_socks.o service_port_forward.o \
         socks_connection.o build_json.o service_thread.o \
         socks5_client.o shuttle.o safe_close.o \
@@ -27,8 +28,11 @@ OBJFILES = log.o string2.o server.o client_connection.o config_file.o \
 
 PROXYOBJFILES = $(OBJFILES) main.o
 
-UNITTESTOBJFILES = $(OBJFILES) unit_test_main.o unit_test.o \
-	unit_test_config_file.o
+UNITTESTOBJFILES = $(OBJFILES) unit_test.o \
+	unit_test_log_level.o \
+	unit_test_config_file.o \
+	unit_test_main.o
+
 
 
 
@@ -73,6 +77,12 @@ main.o: main.c version.h
 
 log.o: log.c
 	$(CC) $(CFLAGS) -c log.c -o log.o
+
+log_level.o: log_level.c
+	$(CC) $(CFLAGS) -c log_level.c -o log_level.o
+
+log_file.o: log_file.c
+	$(CC) $(CFLAGS) -c log_file.c -o log_file.o
 
 string2.o: string2.c
 	$(CC) $(CFLAGS) -c string2.c -o string2.o

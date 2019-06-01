@@ -6,6 +6,8 @@
 
 #include<time.h>
 
+#include"log.h"
+
 // TODO: we should support connecting to a SOCKS5 proxy either not managed by this application, or in a remote host. Right now, it *must* be SSH running locally.
 // example: 
 //   - I want to use an interface different than 127.0.0.1 for the socks proxy Im connecting to
@@ -21,6 +23,7 @@ typedef struct ssh_tunnel {
   char   name[200];            // unique name for this tunnel
   int    socks_port;           // what local port does the SOCKS5 server come up on?
   char   command_to_run[8192]; // how do we build the tunnel?
+  log_config log;
 
   // run-time info
   pid_t  pid;

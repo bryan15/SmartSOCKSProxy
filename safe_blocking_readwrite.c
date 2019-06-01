@@ -18,8 +18,8 @@ void byte_dump(int fd, char *prefix, unsigned char *buf, size_t buflen) {
   // This routine is a little bit heavyweight; if the output
   // is going to be ignored anyways, then don't generate
   // the output.
-  proxy_instance *proxy = thread_local_get_proxy_instance();
-  if (proxy && proxy->log_level > LOG_TRACE2) {
+  log_config *conf = thread_local_get_log_config();
+  if (conf != NULL && conf->level > LOG_LEVEL_TRACE2) {
     return;
   }
 

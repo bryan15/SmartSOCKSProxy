@@ -233,20 +233,16 @@ void add_proxy_instance(char **buf, int *size, char **ptr, proxy_instance *proxy
   add_string(buf,size,ptr,"name",proxy->name);
   add_comma(buf,size,ptr);
  
-  add_to_buf(buf,size,ptr,"\"logLevel\":"); 
-  add_to_buf_int(buf,size,ptr,proxy->log_level);
-  add_to_buf(buf,size,ptr,","); 
+  add_to_buf(buf,size,ptr,"\"logLevel\":\""); 
+  add_to_buf(buf,size,ptr,log_level_str(proxy->log.level));
+  add_to_buf(buf,size,ptr,"\","); 
 
-  add_to_buf(buf,size,ptr,"\"logMaxSize\":"); 
-  add_to_buf_int(buf,size,ptr,proxy->log_max_size);
-  add_to_buf(buf,size,ptr,","); 
-
-  add_to_buf(buf,size,ptr,"\"logMaxRotate\":"); 
-  add_to_buf_int(buf,size,ptr,proxy->log_max_rotate);
-  add_to_buf(buf,size,ptr,","); 
-    
   add_to_buf(buf,size,ptr,"\"logFilename\":\""); 
-  add_to_buf(buf,size,ptr,proxy->log_file_name);
+  if (proxy->log.file) {
+    add_to_buf(buf,size,ptr,proxy->log.file->file_name);
+  } else {
+    add_to_buf(buf,size,ptr,"-");
+  }
   add_to_buf(buf,size,ptr,"\","); 
 
   add_to_buf(buf,size,ptr,"\"service\":{"); // service

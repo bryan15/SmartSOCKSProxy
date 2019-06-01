@@ -1,0 +1,6 @@
+smartsocksproxy
+unit_test
+*.o
+*.swp
+version.h
+

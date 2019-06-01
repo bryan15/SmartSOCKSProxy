@@ -30,4 +30,10 @@ service* thread_local_get_service(void);
 int thread_local_set_client_connection(client_connection *inst);
 client_connection* thread_local_get_client_connection(void);
 
+int thread_local_set_ssh_tunnel(ssh_tunnel *ssh);
+ssh_tunnel* thread_local_get_ssh_tunnel(void);
+
+int thread_local_set_log_config(log_config *conf);
+log_config* thread_local_get_log_config(void);
+
 #endif // THREAD_LOCAL_H

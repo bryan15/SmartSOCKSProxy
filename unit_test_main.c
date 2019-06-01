@@ -1,7 +1,11 @@
+// Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 #include<stdio.h>
-#include"unit_test.h"
-#include"unit_test_config_file.h"
 #include"log.h"
+#include"unit_test.h"
+#include"unit_test_log_level.h"
+#include"unit_test_config_file.h"
 
 int main(int argc, char **argv) {
 
@@ -12,6 +16,7 @@ int main(int argc, char **argv) {
   printf("----------\n");
 
   unit_test_config_file();  
+  unit_test_log_level();
 
   printf("--------------------\n");
   printf("Tests run:   %i\n", tests_run);

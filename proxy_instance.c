@@ -23,8 +23,8 @@ proxy_instance *new_proxy_instance() {
   pinst->service_list=NULL;
   pinst->client_connection_list=NULL;
 
-  // TODO: these should be inherited from the default instance
-  pinst->log_level=LOG_ERROR;
+  log_config_init(&(pinst->log));
+  pinst->log.level=LOG_LEVEL_ERROR;
     
   return pinst;
 }
@@ -43,13 +43,8 @@ proxy_instance *new_proxy_instance_from_template(proxy_instance *template) {
     return pinst;
   }
 
-  pinst->log_level = template->log_level;  
-  pinst->log_max_size = template->log_max_size;  
-  pinst->log_max_rotate = template->log_max_rotate;  
-  // what happens if multiple instances use the same log filename? I think it'll be okay because
-  // all logfile operations are synchronous.
-  strncpy(pinst->log_file_name, template->log_file_name, LOG_LOGFILE_NAME_MAX_LEN-1);  
-  pinst->log_file_name[LOG_LOGFILE_NAME_MAX_LEN-1]=0;
+  pinst->log.level = template->log.level;  
+  pinst->log.file  = template->log.file;  
 
   return pinst;
 }
@@ -59,7 +54,11 @@ char *proxy_instance_str(proxy_instance *pinst, char *buf, int buflen) {
     buf[0]=0;
   }
   if (buf && pinst) {
-    snprintf(buf, buflen, "%s verbosity %i",pinst->name, pinst->log_level);
+    if (pinst->log.file) {
+      snprintf(buf, buflen, "%s log verbosity %s to %s",pinst->name, log_level_str(pinst->log.level), pinst->log.file->file_name);
+    } else {
+      snprintf(buf, buflen, "%s log verbosity %s to STDOUT",pinst->name, log_level_str(pinst->log.level));
+    }
   }
   return buf;
 }

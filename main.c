@@ -56,6 +56,8 @@ int main(int argc,char **argv) {
   thread_local_set_service(NULL);
   thread_local_set_client_connection(NULL);
 
+  log_file* log_file_list = NULL;
+
   // List of all configured proxy instances. Defining just one proxy instance will set this list to
   // non-null and we won't use proxy_instance_default (except as a template for new instances.)
   // If, after configuration, proxy_instance_list is still null, we'll use proxy_instance_default instead;
@@ -69,11 +71,8 @@ int main(int argc,char **argv) {
     unexpected_exit(10,"Cannot instantiate default proxy instance");
   }
   // Setup proxy defaults
-  proxy_instance_default->log_max_size = (1024*1024) * 100;
-  proxy_instance_default->log_max_rotate = 4;
-  strncpy(proxy_instance_default->log_file_name,"/tmp/smartsocksproxy.log",sizeof(proxy_instance_default->log_file_name)-1);
-  proxy_instance_default->log_file_name[sizeof(proxy_instance_default->log_file_name)-1]=0; // paranoia: no unterminated strings for us!
   strncpy(proxy_instance_default->name,"default",sizeof(proxy_instance_default->name));
+  proxy_instance_default->log.level = LOG_LEVEL_INFO;
   thread_local_set_proxy_instance(proxy_instance_default);
 
   // List of SSH tunnels that have been provied/configuration
@@ -107,14 +106,17 @@ int main(int argc,char **argv) {
         daemonize = 1;
         break;
       case 'v':
+        /*
         proxy_instance_modify->log_level--;
-        if (proxy_instance_modify->log_level < LOG_TRACE2) {
-          proxy_instance_modify->log_level = LOG_TRACE2;
-        }
+        if (proxy_instance_modify->log_level < LOG_LEVEL_TRACE2) {
+          proxy_instance_modify->log_level = LOG_LEVEL_TRACE2;
+        } */
         break;
       case 'V':
+        /*
         proxy_instance_modify->log_level = log_level_from_str(optarg);
         // info("Set verbosity level for proxy '%s' to %s (%i)",proxy_instance_modify->name, log_level_str(proxy_instance_modify->log_level), proxy_instance_modify->log_level);
+        */
         break;
       case 'h':
         help=1;
@@ -138,11 +140,13 @@ int main(int argc,char **argv) {
         ssh_tmp=NULL;
         break;
       case 'l':
+        /*
         strncpy(proxy_instance_modify->log_file_name, optarg, LOG_LOGFILE_NAME_MAX_LEN-1);
         proxy_instance_modify->log_file_name[LOG_LOGFILE_NAME_MAX_LEN-1]=0; // ensure null terminated
+        */
         break;
       case 'S':
-        sscanf(optarg, "%li",&(proxy_instance_modify->log_max_size));
+        // sscanf(optarg, "%li",&(proxy_instance_modify->log_max_size));
         break;
       case 'L':
         port_forward_tmp = parse_service_port_forward_spec(optarg);
@@ -163,7 +167,7 @@ int main(int argc,char **argv) {
         http_tmp=NULL;
         break;
       case 'r':
-        sscanf(optarg, "%i",&(proxy_instance_modify->log_max_rotate));
+        // sscanf(optarg, "%i",&(proxy_instance_modify->log_max_rotate));
         break;
       case 'i':
         proxy_instance_tmp = new_proxy_instance_from_template(proxy_instance_default);
@@ -271,11 +275,14 @@ int main(int argc,char **argv) {
   // initialize logfiles
   // TODO FIXME: figure out and configure logging config for main thread 
   for (proxy_instance *pinst = proxy_instance_list; pinst; pinst = pinst->next) {
+    // TODO FIXME open log files
+    /*
     pinst->log = new_log_info( pinst->log_file_name, pinst->log_level, pinst->log_max_size, pinst->log_max_rotate ); 
     if (pinst->log == NULL) {
       unexpected_exit (14,"Errors initializing log files. Exiting.");
     }
+    */
   }
-  return server(proxy_instance_list,ssh_tunnel_list);
+  return server(log_file_list, proxy_instance_list, ssh_tunnel_list);
 }
 

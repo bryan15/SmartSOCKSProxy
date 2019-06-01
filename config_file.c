@@ -1,3 +1,6 @@
+// Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 #include<fcntl.h>
 #include<unistd.h>
 #include<errno.h>
@@ -130,66 +133,68 @@ int remove_extra_spaces_and_comments_from_config_line(char *inbuf, char *outbuf,
   return 1;
 }
 
+proxy_instance* config_file_parse_proxy_instance(char *filename, int line_num, char *line, proxy_instance** proxy_instance_list, proxy_instance *proxy_default) {
+  if (!string_starts_with(line,"proxy ")) {
+    return NULL;
+  }
+
+  char *section = &(line[6]);
+  if (strlen(section)<=0) {
+    error("%s line %i: Invalid proxy definition: %s",filename, line_num, line);
+    return NULL;
+  }
+  if (strcmp(section,"default")==0) { 
+    trace("%s line %i: switch proxy_instance to default",filename, line_num);
+    return proxy_default;
+  }
+  for (proxy_instance* proxy = *proxy_instance_list; proxy != NULL ; proxy=proxy->next) {
+    if (strcmp(section,proxy->name)==0) {
+      trace("%s line %i: switch proxy_instance to '%s'",filename, line_num, proxy->name);
+      return proxy;
+    }
+  }
+
+  // we didn't find this proxy in our list. Create it and return the new value. 
+  proxy_instance* new_proxy = new_proxy_instance_from_template(proxy_default);
+  strncpy(new_proxy->name,section,sizeof(new_proxy->name)-1);
+  *proxy_instance_list = insert_proxy_instance(*proxy_instance_list, new_proxy);
+  trace("%s line %i: create new proxy_instance '%s'",filename, line_num, new_proxy->name);
+  return new_proxy;
+}
+
+ssh_tunnel* config_file_parse_ssh_tunnel(char *filename, int line_num, char *line, ssh_tunnel** ssh_tunnel_list, ssh_tunnel* ssh_default) {
+  if (!string_starts_with(line,"ssh ")) {
+    return NULL;
+  }
+  char *section = &(line[4]);
+  if (strlen(section)<=0) {
+    error("%s line %i: Invalid ssh definition: %s",filename, line_num, line);
+    return NULL;
+  }
+  if (strcmp(section,"default")==0) { 
+    trace("%s line %i: switch ssh_tunnel to default",filename, line_num);
+    return ssh_default;
+  }
+  for (ssh_tunnel* ssh = *ssh_tunnel_list; ssh != NULL ; ssh=ssh->next) {
+    if (strcmp(section,ssh->name)==0) {
+      trace("%s line %i: switch ssh_tunnel to '%s'",filename, line_num, ssh->name);
+      return ssh;
+    }
+  }
+
+  // we didn't find this ssh in our list. Create it and set the current ssh to it
+  ssh_tunnel *new_ssh = new_ssh_tunnel(ssh_default);
+  strncpy(new_ssh->name,section,sizeof(new_ssh->name)-1);
+  *ssh_tunnel_list = insert_ssh_tunnel(*ssh_tunnel_list, new_ssh);
+  trace("%s line %i: create new ssh_tunnel '%s'",filename, line_num, new_ssh->name);
+  return new_ssh;
+}
+
+
+
 int config_file_parse_one_line(proxy_instance** proxy_instance_list, proxy_instance* proxy_default, proxy_instance** proxy_current, 
                                ssh_tunnel** ssh_tunnel_list, ssh_tunnel* ssh_default, ssh_tunnel** ssh_current, 
                                char *filename, int line_num, char *line) {
-
-  // virtual proxy definition
-  if (string_starts_with(line,"proxy ")) {
-    char *section = &(line[6]);
-    if (strlen(section)<=0) {
-      error("%s line %i: Invalid proxy definition: %s",filename, line_num, line);
-      return 0;
-    }
-    if (strcmp(section,"default")==0) { 
-      *proxy_current = proxy_default;
-      trace("%s line %i: switch proxy_instance to '%s'",filename, line_num, (*proxy_current)->name);
-      return 1;
-    }
-    for (proxy_instance* proxy = *proxy_instance_list; proxy != NULL ; proxy=proxy->next) {
-      if (strcmp(section,proxy->name)==0) {
-        *proxy_current = proxy;
-        trace("%s line %i: switch proxy_instance to '%s'",filename, line_num, (*proxy_current)->name);
-        return 1;
-      }
-    }
-
-    // we didn't find this proxy in our list. Create it and set the current proxy to it. 
-    proxy_instance* new_proxy = new_proxy_instance_from_template(proxy_default);
-    strncpy(new_proxy->name,section,sizeof(new_proxy->name)-1);
-    *proxy_instance_list = insert_proxy_instance(*proxy_instance_list, new_proxy);
-    *proxy_current = new_proxy;
-    trace("%s line %i: create new proxy_instance '%s'",filename, line_num, (*proxy_current)->name);
-    return 1;
-  }
-
-  if (string_starts_with(line,"ssh ")) {
-    char *section = &(line[4]);
-    if (strlen(section)<=0) {
-      error("%s line %i: Invalid ssh definition: %s",filename, line_num, line);
-      return 0;
-    }
-    if (strcmp(section,"default")==0) { 
-      *ssh_current = ssh_default;
-      trace("%s line %i: switch ssh_tunnel to '%s'",filename, line_num, (*ssh_current)->name);
-      return 1;
-    }
-    for (ssh_tunnel* ssh = *ssh_tunnel_list; ssh != NULL ; ssh=ssh->next) {
-      if (strcmp(section,ssh->name)==0) {
-        *ssh_current = ssh;
-        trace("%s line %i: switch ssh_tunnel to '%s'",filename, line_num, (*ssh_current)->name);
-        return 1;
-      }
-    }
-
-    // we didn't find this ssh in our list. Create it and set the current ssh to it
-    ssh_tunnel *new_ssh = new_ssh_tunnel(ssh_default);
-    strncpy(new_ssh->name,section,sizeof(new_ssh->name)-1);
-    *ssh_tunnel_list = insert_ssh_tunnel(*ssh_tunnel_list, new_ssh);
-    *ssh_current = new_ssh;
-    trace("%s line %i: create new ssh_tunnel '%s'",filename, line_num, (*ssh_current)->name);
-    return 1;
-  }
  
   return 1;
 }

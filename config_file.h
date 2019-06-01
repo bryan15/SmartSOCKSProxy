@@ -1,3 +1,6 @@
+// Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 #ifndef CONFIG_FILE_H
 #define CONFIG_FILE_H
 

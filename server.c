@@ -8,13 +8,9 @@
 #include<pthread.h>
 #include<sys/select.h>
 #include<errno.h>
-/*
-#include<netdb.h>
-#include<netinet/in.h>
-#include<sys/wait.h>
-*/
 
 #include"log.h"
+#include"log_file.h"
 #include"client_connection.h"
 #include"ssh_tunnel.h"
 #include"ssh_policy.h"
@@ -191,7 +187,7 @@ void read_from_child(char *label, ssh_tunnel *ssh, int fd) {
 
 // Main loop
 //int server(int port, port_forward *port_forward_pool) {
-int server(proxy_instance *proxy_instance_list, ssh_tunnel *ssh_tunnel_list) {
+int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tunnel *ssh_tunnel_list) {
 
   //if (signal(SIGPIPE,signal_callback_handler) == SIG_ERR) {
   //  unexpected_exit(92,"signal()");
