@@ -16,6 +16,7 @@
 #include"service_socks.h"
 #include"thread_local.h"
 #include"proxy_instance.h"
+#include"config_file.h"
 #include"version.h"
 
 // These pragma's are to squelch a warning. 
@@ -55,41 +56,39 @@ int main(int argc,char **argv) {
   thread_local_set_service(NULL);
   thread_local_set_client_connection(NULL);
 
-  // List of SSH tunnels that have been provied/configuration
-  ssh_tunnel* ssh_tunnel_list = ssh_tunnel_init(NULL);
-
   // List of all configured proxy instances. Defining just one proxy instance will set this list to
   // non-null and we won't use proxy_instance_default (except as a template for new instances.)
   // If, after configuration, proxy_instance_list is still null, we'll use proxy_instance_default instead;
   // this preserves the old behavior in a backwards-compatible way; there was only one (implied) proxy
   // instance.
   proxy_instance* proxy_instance_list = NULL;
-  /* TODO FIXME implement config file parsing
-  config_load_files(&proxy_instance_list, &ssh_tunnel_list);
-  config_parse_command_line(&proxy_instance_list, &ssh_tunnel_list);
-  */
 
   // the default proxy instance holds our default settings and are copied to other instances when created. 
-  // TODO FIXME this needs to go away
   proxy_instance* proxy_instance_default = new_proxy_instance();
   if (proxy_instance_default == NULL) {
     unexpected_exit(10,"Cannot instantiate default proxy instance");
   }
-
-
-  // Configuration, via command-line or config files, is contextual. The following variable always
-  // points to the proxy_instance we're currently modifying.
-  proxy_instance* proxy_instance_modify = proxy_instance_default;
-
   // Setup proxy defaults
-  proxy_instance_modify->log_max_size = (1024*1024) * 100;
-  proxy_instance_modify->log_max_rotate = 4;
-  strncpy(proxy_instance_modify->log_file_name,"/tmp/smartsocksproxy",sizeof(proxy_instance_modify->log_file_name)-1);
-  proxy_instance_modify->log_file_name[sizeof(proxy_instance_modify->log_file_name)-1]=0; // paranoia: no unterminated strings for us!
-  strncpy(proxy_instance_modify->name,"default",sizeof(proxy_instance_modify->name));
+  proxy_instance_default->log_max_size = (1024*1024) * 100;
+  proxy_instance_default->log_max_rotate = 4;
+  strncpy(proxy_instance_default->log_file_name,"/tmp/smartsocksproxy.log",sizeof(proxy_instance_default->log_file_name)-1);
+  proxy_instance_default->log_file_name[sizeof(proxy_instance_default->log_file_name)-1]=0; // paranoia: no unterminated strings for us!
+  strncpy(proxy_instance_default->name,"default",sizeof(proxy_instance_default->name));
+  thread_local_set_proxy_instance(proxy_instance_default);
+
+  // List of SSH tunnels that have been provied/configuration
+  ssh_tunnel* ssh_tunnel_list = ssh_tunnel_init(NULL);
+  ssh_tunnel* ssh_tunnel_default = new_ssh_tunnel();
+  if (ssh_tunnel_default == NULL) {
+    unexpected_exit(15,"Cannot instantiate default ssh_tunnel");
+  }
+
+  // Configuration via command-line is contextual. The following variable always
+  // points to the object we're currently modifying.
+  proxy_instance* proxy_instance_modify = proxy_instance_default;
+  ssh_tunnel* ssh_tunnel_modify = ssh_tunnel_default;
 
   srand(time(NULL));
-
 
   char option;
   service_port_forward *port_forward_tmp=NULL;
@@ -97,16 +96,25 @@ int main(int argc,char **argv) {
   service_http *http_tmp=NULL;
   proxy_instance *proxy_instance_tmp=NULL;
   ssh_tunnel* ssh_tmp=NULL;
-  while ((option = getopt(argc,argv, "dvV:hp:l:L:S:r:i:m:s:")) != -1) {
+  while ((option = getopt(argc,argv, "c:dvV:hp:l:L:S:r:i:m:s:")) != -1) {
     switch(option) {
+      case 'c':
+        if (!config_file_parse(&proxy_instance_list, proxy_instance_default, &ssh_tunnel_list, ssh_tunnel_default, optarg)) {
+          exit(1);
+        }
+        break;
       case 'd':
         daemonize = 1;
         break;
       case 'v':
         proxy_instance_modify->log_level--;
+        if (proxy_instance_modify->log_level < LOG_TRACE2) {
+          proxy_instance_modify->log_level = LOG_TRACE2;
+        }
         break;
       case 'V':
-        sscanf(optarg, "%i",&(proxy_instance_modify->log_level));
+        proxy_instance_modify->log_level = log_level_from_str(optarg);
+        // info("Set verbosity level for proxy '%s' to %s (%i)",proxy_instance_modify->name, log_level_str(proxy_instance_modify->log_level), proxy_instance_modify->log_level);
         break;
       case 'h':
         help=1;
@@ -228,13 +236,13 @@ int main(int argc,char **argv) {
     printf("          When rotating logfile, keep <num> previous logfiles before deleting the oldest one.\n");
     printf("  -v      increase log verbosity\n");
     printf("  -V <level>\n");
-    printf("          Set log verbosity to <level>. Values: (see log.h)\n");
-    printf("             error   %i\n",LOG_ERROR);
-    printf("             warn    %i\n",LOG_WARN);
-    printf("             info    %i\n",LOG_INFO);
-    printf("             debug   %i\n",LOG_DEBUG);
-    printf("             trace   %i\n",LOG_TRACE);
-    printf("             trace2  %i\n",LOG_TRACE2);
+    printf("          Set log verbosity to <level> (see log.h):\n");
+    printf("             error\n");
+    printf("             warn\n");
+    printf("             info\n");
+    printf("             debug\n");
+    printf("             trace\n");
+    printf("             trace2\n");
     printf("\n");
     printf("Other Options:\n");
     printf("  -d      daemonize; start proxy in background\n");

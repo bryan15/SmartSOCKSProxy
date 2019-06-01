@@ -41,6 +41,7 @@ extern ssh_tunnel *ssh_tunnel_null;
 ssh_tunnel *ssh_tunnel_pool;
 
 ssh_tunnel *new_ssh_tunnel();
+ssh_tunnel *new_ssh_tunnel_from_template(ssh_tunnel *template);
 ssh_tunnel *insert_ssh_tunnel(ssh_tunnel *head, ssh_tunnel *ssh); 
 char *ssh_tunnel_str(ssh_tunnel *ssh, char *buf, int buflen);
 ssh_tunnel *parse_ssh_tunnel_spec(char *str);

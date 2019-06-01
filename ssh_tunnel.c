@@ -12,6 +12,7 @@
 unsigned long long ssh_id_pool=0;
 
 ssh_tunnel *ssh_tunnel_direct;
+ssh_tunnel *ssh_tunnel_socks_proxy;
 ssh_tunnel *ssh_tunnel_null;
 
 ssh_tunnel *new_ssh_tunnel() {
@@ -26,6 +27,7 @@ ssh_tunnel *new_ssh_tunnel() {
   ssh->next=NULL;
   ssh->command_to_run[0]=0;
   ssh->socks_port=0;
+  ssh->name[0]=0;
 
   ssh->pid=-1;
   ssh->start_time=0;
@@ -43,8 +45,12 @@ ssh_tunnel *new_ssh_tunnel() {
   return ssh;
 }
 
-ssh_tunnel *insert_ssh_tunnel(ssh_tunnel *head, ssh_tunnel *ssh) {
-  trace("insert_ssh_tunnel()");
+ssh_tunnel* new_ssh_tunnel_from_template(ssh_tunnel* template) {
+  return new_ssh_tunnel();
+}
+
+ssh_tunnel* insert_ssh_tunnel(ssh_tunnel *head, ssh_tunnel *ssh) {
+  trace("insert_ssh_tunnel(%s)",ssh->name);
   // ssh is the new head
   ssh->next=head;
   return ssh;
@@ -55,6 +61,10 @@ ssh_tunnel *ssh_tunnel_init(ssh_tunnel *head) {
   strncpy(ssh_tunnel_direct->name,"direct",sizeof(ssh_tunnel_direct->name)-1);
   head=insert_ssh_tunnel(head,ssh_tunnel_direct);
  
+  ssh_tunnel_socks_proxy = new_ssh_tunnel();
+  strncpy(ssh_tunnel_socks_proxy->name,"socks_proxy",sizeof(ssh_tunnel_socks_proxy->name)-1);
+  head=insert_ssh_tunnel(head,ssh_tunnel_socks_proxy);
+
   ssh_tunnel_null = new_ssh_tunnel();
   strncpy(ssh_tunnel_null->name,"null",sizeof(ssh_tunnel_null->name)-1);
   head=insert_ssh_tunnel(head,ssh_tunnel_null);

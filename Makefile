@@ -16,7 +16,7 @@ CC=gcc
 CFLAGS=
 LDFLAGS=
 
-OBJFILES = main.o log.o string2.o server.o client_connection.o \
+OBJFILES = log.o string2.o server.o client_connection.o config_file.o \
         service.o service_http.o service_socks.o service_port_forward.o \
         socks_connection.o build_json.o service_thread.o \
         socks5_client.o shuttle.o safe_close.o \
@@ -25,15 +25,25 @@ OBJFILES = main.o log.o string2.o server.o client_connection.o \
 	ssh_tunnel.o ssh_policy.o \
 	route_rule.o route_rules_engine.o host_id.o
 
-all: smartsocksproxy
+PROXYOBJFILES = $(OBJFILES) main.o
+
+UNITTESTOBJFILES = $(OBJFILES) unit_test_main.o unit_test.o \
+	unit_test_config_file.o
+
+
+
+all: smartsocksproxy unit_test
 
 clean: 
-	rm -f *.o smartsocksproxy version.h
+	rm -f *.o smartsocksproxy unit_test version.h
 
 fail:
 	echo start
 	git diff-index --quiet HEAD --
 	echo end
+
+test: unit_test
+	./unit_test
 
 # run git-diff-index twice; once to print the message, second time to stop the build.
 # The '@' suppresses echoing the command to STDOUT
@@ -133,6 +143,18 @@ route_rules_engine.o: route_rules_engine.c
 host_id.o: host_id.c
 	$(CC) $(CFLAGS) -c host_id.c -o host_id.o
 
-smartsocksproxy: $(OBJFILES)
-	$(CC) $(LDFLAGS) $(OBJFILES) -o smartsocksproxy
+config_file.o: config_file.c
+	$(CC) $(CFLAGS) -c config_file.c -o config_file.o
+
+unit_test.o: unit_test.c
+	$(CC) $(CFLAGS) -c unit_test.c -o unit_test.o
+
+unit_test_run.o: unit_test_run.c
+	$(CC) $(CFLAGS) -c unit_test_run.c -o unit_test_run.o
+
+smartsocksproxy: $(PROXYOBJFILES)
+	$(CC) $(LDFLAGS) $(PROXYOBJFILES) -o smartsocksproxy
+
+unit_test: $(UNITTESTOBJFILES)
+	$(CC) $(LDFLAGS) $(UNITTESTOBJFILES) -o unit_test
 

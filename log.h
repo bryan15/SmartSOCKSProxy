@@ -6,7 +6,10 @@
 
 #define LOG_LOGFILE_NAME_MAX_LEN 2048
 
-// logfile can be shared between multiple threads, and tracks
+// Logfiles are keyed off their filename; for a given filename, only one 
+// logfile_primitive struct exists in memory.
+// If multiple parts of config set can_rotate or byte_count_max, last one wins. 
+// Logfile_primitive can be shared between multiple threads, and tracks
 // data specific to the logfile eg: how many bytes we've written to the file. 
 typedef struct logfile_primitive {
   struct logfile_primitive *next; 
@@ -30,6 +33,8 @@ typedef struct log_info {
 
 void log_init();
 log_info *new_log_info(char *filename, int level, long max_size, long max_rotate);
+char *log_level_str(int level);
+int log_level_from_str(char *level_str);
 void log_write(int level, const char *file, int line, int include_errno, int include_file_line, const char *format, ...);
 
 void unexpected_exit(int return_code, char* err_msg);

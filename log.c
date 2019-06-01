@@ -4,6 +4,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
+#include<strings.h>
 #include<sys/errno.h>
 #include<sys/stat.h>
 #include<pthread.h>
@@ -240,4 +241,39 @@ void log_write(int level, const char *file, int line, int include_errno, int inc
   errno=saved_errno;
 }
 
+
+struct log_level_type {
+  int level;
+  char *name;
+};
+
+struct log_level_type log_levels[] = {
+  { LOG_TRACE2, "trace2" },
+  { LOG_TRACE, "trace" },
+  { LOG_DEBUG, "debug" },
+  { LOG_INFO, "info" },
+  { LOG_WARN, "warn" },
+  { LOG_ERROR, "error" },
+  { -1, NULL }
+};
+
+char *log_level_str(int level) {
+  for (int i=0; log_levels[i].name != NULL; i++) {
+    if (log_levels[i].level == level) {
+      return log_levels[i].name;
+    }
+  }
+  error("Invalid log level: %i",level);
+  return "LOG_LEVEL_INVALID";
+}
+
+int log_level_from_str(char *level_str) {
+  for (int i=0; log_levels[i].name != NULL; i++) {
+    if (strcasecmp(log_levels[i].name,level_str) == 0) {
+      return log_levels[i].level;
+    }
+  }
+  error("Invalid log level name: %s",level_str);
+  return LOG_INFO;
+}
 
