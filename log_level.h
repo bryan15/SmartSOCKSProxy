@@ -13,6 +13,7 @@
 #define LOG_LEVEL_ERROR     5
 
 char *log_level_str(int level);
+char *log_level_str_upper_fixedwidth(int level);
 int log_level_from_str(char *level_str);
 
 #endif // LOG_LEVEL_H

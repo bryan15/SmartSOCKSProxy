@@ -1,29 +1,47 @@
 # SmartSOCKSProxy
 
-SmartSOCKSProxy is a sock5 server/proxy and SSH manager which intelligently routes TCP connections to where they need to go 
+SmartSOCKSProxy is a sock4/5 proxy and SSH manager which intelligently routes TCP connections to where they need to go 
 without resorting to static SSH tunnels. SmartSOCKSProxy allows the client (web browser, java application) to use DNS names
-without needing overrides in /etc/hosts. 
+which may not appear on the local network segment, without resorting to overrides in /etc/hosts (in most cases). 
 
-If a connection to a network segment is requested, SmartSOCKSProxy opens an SSH connection into that segment's bastion and routes 
-the connection through SSH. In this case, SmartSOCKSProxy acts as a SOCKS5 client and uses SSH as the SOCKS5 server. 
+If a connection to a non-local network segment is requested, SmartSOCKSProxy opens an SSH connection into that segment's
+bastion and routes the connection through SSH.
 
 ## Requirements / Setup:
 
-  - Build SmartSOCKSProxy on a mach: You may need to install xcode? if you don’t have it already. 
+  - Build SmartSOCKSProxy on MacOS: You may need to install xcode?
     - cd smartsocksproxy ; make clean ; make -j4 all
     - the above command should complete without any errors
 
   - You can ssh into your bastions without a password (if id_rsa is password protected, run “ssh-add ~/.ssh/id_rsa”)
 
+  - Run the unit tests 
+    - make test
+
   - Test SmartSOCKSProxy by running in the foreground:
-    - ./smartsocksproxy -v -v -v -l -
-    - if you want to specify the SOCKS5 port, add "-p &lt;port&gt;" to the command line
+    - ./smartsocksproxy
 
   - Copy and edit "run_smartsocksproxy.sh.example"; modify the path to smartsocksproxy you built above.
     Note: this example shell also contains static port-forwarding for access to Dev/QA/Prod Databases. 
     Because SQLDeveloper circumvents JVM SOCKS5 support.  
 
 Running "./smartsocksproxy -h" provides a brief help summary. 
+
+## Configuration
+
+
+Command-line options and lines in a config file executed sequentially, in the order they appear. 
+If two or more config lines set the same value, later lines overwrite earlier lines.
+IE: last line wins. 
+
+### Peculiarities
+
+The main thread is "special" with respect to logging. Two command-line options let you setup 
+main-thread verbosity and filename. The settings take effect immediately; command-line options
+are parsed and executed in the order they appear on the command line. 
+
+IE: If you want to increase verbosity or capture output of config file parsing, 
+use -v and -V options *before* the -c option on the command-line.
 
 
 ## Configure Your Browser or Application:

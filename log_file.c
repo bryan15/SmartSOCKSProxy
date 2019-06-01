@@ -48,6 +48,7 @@ log_file *new_log_file(char *filename) {
   } else {
     log->can_rotate=1; 
   }
+  log->fd=-1;
   return log;
 }
 
@@ -121,11 +122,16 @@ void log_file_write(log_file *log, char *buf, int buflen) {
 // I really assume we can talk to the filesystem :-/
 // IMPROVEMENT: better error reporting to the user. Esp. around chmod
 void log_file_open(log_file *log) {
+  // check if already open
+  if (log->fd >= 0) {
+    return;
+  }
+
   if (strncmp(log->file_name,"-",LOG_FILE_NAME_MAX_LEN-1)==0) {
     log->fd = STDOUT_FILENO;
     return;
   }  
-
+  
   int rc;
   rc=open( log->file_name, O_CREAT | O_APPEND | O_RDWR | O_EXLOCK | O_NONBLOCK );
   if (rc < 0) {
@@ -138,4 +144,24 @@ void log_file_open(log_file *log) {
   log->fd = rc; 
   log->byte_count = lseek(log->fd, 0, SEEK_CUR);
 }
+
+// log_files are somewhat unique in that they're re-used by multiple other objects. 
+// Therefore, it's helpful to have a utility function to find a pre-existing 
+// log_file, or create one if it doesn't exist. 
+log_file *find_or_create_log_file(log_file **head, log_file *template, char *filename) {
+  log_file *log = find_log_file(*head, filename);
+  if (log) {
+    return log;
+  }
+  if (template) {
+    log = new_log_file_from_template(template, filename);
+  } else {
+    log_file *new = new_log_file(filename);
+  }
+  if (log) {
+    *head = insert_log_file(*head,log);
+  }
+  return log;
+}
+
 

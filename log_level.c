@@ -20,11 +20,24 @@ struct log_level_type log_levels[] = {
   { LOG_LEVEL_INVALID, NULL }
 };
 
-char *log_level_str(int level) {
+char* log_level_str(int level) {
   for (int i=0; log_levels[i].name != NULL; i++) {
     if (log_levels[i].level == level) {
       return log_levels[i].name;
     }
+  }
+  return NULL;
+}
+
+// blah, cheap'n easy way to make a thread-safe version 
+char* log_level_str_upper_fixedwidth(int level) {
+  switch(level) { 
+    case LOG_LEVEL_TRACE2: return "TRACE2";
+    case LOG_LEVEL_TRACE:  return "TRACE ";
+    case LOG_LEVEL_DEBUG:  return "DEBUG ";
+    case LOG_LEVEL_INFO:   return "INFO  ";
+    case LOG_LEVEL_WARN:   return "WARN  ";
+    case LOG_LEVEL_ERROR:  return "ERROR ";
   }
   return NULL;
 }

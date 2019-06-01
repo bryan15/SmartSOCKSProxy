@@ -59,7 +59,7 @@ client_connection* thread_local_get_client_connection(void) {
 }
 
 int thread_local_set_ssh_tunnel(ssh_tunnel *ssh) {
-  return pthread_setspecific(thread_local_key_proxy_instance,ssh);
+  return pthread_setspecific(thread_local_key_ssh_tunnel,ssh);
 }
 
 ssh_tunnel* thread_local_get_ssh_tunnel(void) {
@@ -67,7 +67,7 @@ ssh_tunnel* thread_local_get_ssh_tunnel(void) {
 }
 
 int thread_local_set_log_config(log_config *conf) {
-  return pthread_setspecific(thread_local_key_proxy_instance,conf);
+  return pthread_setspecific(thread_local_key_log_config,conf);
 }
 
 log_config* thread_local_get_log_config(void) {

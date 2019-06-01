@@ -200,7 +200,7 @@ int config_file_parse_one_line(proxy_instance** proxy_instance_list, proxy_insta
 }
 
 
-int config_file_parse(proxy_instance** proxy_instance_list, proxy_instance* proxy_default, ssh_tunnel** ssh_tunnel_list, ssh_tunnel *ssh_default, char* filename) {
+int config_file_parse(log_file **log_file_list, log_file *log_file_default, proxy_instance** proxy_instance_list, proxy_instance* proxy_default, ssh_tunnel** ssh_tunnel_list, ssh_tunnel *ssh_default, char* filename) {
   trace("Reading config file '%s'",filename);
   int fd = open(filename,O_RDONLY);
   if ( fd < 0 ) {

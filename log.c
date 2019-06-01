@@ -66,7 +66,7 @@ void log_write(int level, const char *file, int line, int include_errno, int inc
   vsnprintf(args_buf,sizeof(args_buf),format,args);
   va_end(args);
  
-  char *level_buf = log_level_str(level);
+  char *level_buf = log_level_str_upper_fixedwidth(level);
 
   // now let's assemble our line to print using the bits and pieces we gathered above
   char line_buf[8192];
