@@ -7,7 +7,10 @@
 #include"proxy_instance.h"
 #include"ssh_tunnel.h"
 
-int config_file_parse(log_file **log_file_list, log_file *log_file_default, proxy_instance** proxy_instance_list, proxy_instance* proxy_default, ssh_tunnel** ssh_tunnel_list, ssh_tunnel *ssh_default, char* filename);
+int config_file_parse(log_file **log_file_list, log_file *log_file_default, 
+                      log_config *log_config_main,
+                      proxy_instance** proxy_instance_list, proxy_instance* proxy_default, 
+                      ssh_tunnel** ssh_tunnel_list, ssh_tunnel *ssh_default, char* filename);
 
 // exported for unit tests
 int read_line(int fd, char* buf, int buflen, int* cr, int* lf, char *filename, int line_num);
