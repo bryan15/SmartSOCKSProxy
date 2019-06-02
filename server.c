@@ -7,7 +7,10 @@
 #include<string.h>
 #include<pthread.h>
 #include<sys/select.h>
+#include<sys/socket.h>
+#include<sys/signal.h>
 #include<errno.h>
+#include<signal.h>
 
 #include"log.h"
 #include"log_file.h"

@@ -1,6 +1,7 @@
 // Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: MIT-0
 
+#include<stdlib.h>
 #include<strings.h>
 
 #include"log_level.h"

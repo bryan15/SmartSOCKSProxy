@@ -8,6 +8,8 @@
 #include<netdb.h>
 #include<netinet/in.h>
 #include<sys/select.h>
+#include<sys/socket.h>
+#include<sys/signal.h>
 #include<sys/wait.h>
 #include<errno.h>
 #include<stdio.h>

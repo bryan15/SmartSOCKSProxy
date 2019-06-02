@@ -5,6 +5,7 @@
 #define HOST_ID_H
 
 #include<netinet/in.h>
+#include<sys/socket.h>
 
 // https://www.ietf.org/rfc/rfc1035.txt 
 // section 2.3.4 Size Limits
