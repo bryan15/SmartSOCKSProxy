@@ -38,21 +38,6 @@ int listen_socket(char *listenInterface, int port) {
     unexpected_exit(33,"setsockopt()");
   }
 
-  // seems we periodically get a SIGPIPE. Example error message:
-  //   INFO   9471: Routed connection 9470 127.0.0.1:59196 -> CONNECT via direct 35.161.16.31:443
-  //   INFO   9470: Routed connection 9471 127.0.0.1:59197 -> CONNECT via direct 35.161.16.31:443
-  //   ERROR:  Caught signal 13
-  //   ERROR:  Error on listen socket. Exiting. in server.c line 262
-  //   write(): Broken pipe in safe_blocking_readwrite.c line 81
-  //   ERROR  9468: write(): Broken pipe in shuttle.c line 28
-  // Problem is: the signal kills the application. 
-  // So we just ignore it; we disable it on the socket. See https://stackoverflow.com/questions/108183/how-to-prevent-sigpipes-or-handle-them-properly
-  flag=1;
-  if (setsockopt(listen_fd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&flag, sizeof(int)) == -1) {
-    errorNum("setsockopt(SO_NOSIGPIPE) failed");
-    unexpected_exit(34,"setsockopt()");
-  }
-
   // Initialize socket structure 
   struct sockaddr_in   server_addr;
 

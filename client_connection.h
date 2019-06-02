@@ -4,6 +4,7 @@
 #ifndef CLIENT_CONNECTION_H
 #define CLIENT_CONNECTION_H
 
+#include<pthread.h>
 #include<netinet/in.h>
 #include<time.h>
 

@@ -100,13 +100,6 @@ client_connection *accept_connection(service *srv) {
     errorNum("accept()");
   } else {
     // looks good; lets setup a new client_connection
-
-    // set socket options
-    int flag=1;
-    if (setsockopt(new_client_fd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&flag, sizeof(int)) == -1) {
-      unexpected_exit(81,"setsockopt(SO_NOSIGPIPE) failed");
-    }
-
     client_connection *con = new_client_connection();
     con->srv=(void*)srv;
     con->fd_in=new_client_fd;
@@ -192,23 +185,31 @@ void read_from_child(char *label, ssh_tunnel *ssh, int fd) {
 //int server(int port, port_forward *port_forward_pool) {
 int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tunnel *ssh_tunnel_list, log_config *main_log_config) {
 
+  // On a Macbook coming out of sleep, seems we get a SIGPIPE on our sockets & pipes. 
+  // Example error message:
+  //   INFO   9471: Routed connection 9470 127.0.0.1:59196 -> CONNECT via direct 35.161.16.31:443
+  //   INFO   9470: Routed connection 9471 127.0.0.1:59197 -> CONNECT via direct 35.161.16.31:443
+  //   ERROR:  Caught signal 13
+  //   ERROR:  Error on listen socket. Exiting. in server.c line 262
+  //   write(): Broken pipe in safe_blocking_readwrite.c line 81
+  //   ERROR  9468: write(): Broken pipe in shuttle.c line 28
+  // Problem is: the signal kills the application. 
+  // So we just ignore it; we disable it on the socket. 
+  // See https://stackoverflow.com/questions/108183/how-to-prevent-sigpipes-or-handle-them-properly
+  // Another option is to handle the signal in a callback. But, we're not really setup to handle signals. 
+  // Improvement: Use SIGPIPE handler to set a flag and check it at appropriate points in time.
+  // 
   //if (signal(SIGPIPE,signal_callback_handler) == SIG_ERR) {
   //  unexpected_exit(92,"signal()");
   //}
-  // Normally I prefer to avoid situations where we receive signals. 
-  // But on my mac laptop, coming out of sleep after a long time, 
-  // something is getting a SIGPIPE and causing smartsocksproxy to exit. 
   if (signal(SIGPIPE,SIG_IGN) == SIG_ERR) {
     unexpected_exit(92,"signal()");
   }
 
-  // TODO FIXME: where does child stdout/stderr and non-proxy_instance messages go?
-  // TODO FIXME: They need a logfile to go to.
-
   // We have limited need for worker threads to wake-up the main thread 
   // (ie: break out of blocking select())
   // For this purpose, we create a pipe. This pipe is included
-  // in select(). To wake up the main thread, write to the
+  // in select(). To wake up the main thread, write a byte to the
   // pipe. That's it. Currently, the contents of the data written
   // to the pipe is irrelevant and discarded. 
   int msg_pipe[2];
@@ -229,7 +230,7 @@ int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tun
     }
   } 
   thread_local_set_service(NULL);
-  thread_local_set_proxy_instance(NULL); // TODO FIXME setup default logfile
+  thread_local_set_proxy_instance(NULL);
   thread_local_set_log_config(main_log_config);
 
   time_t proxy_start_time = time(NULL);
@@ -241,7 +242,7 @@ int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tun
   int rc;
   client_connection *pool=NULL;
   while (!exit_server) { 
-    //trace("loop");
+    //trace2("loop"); // some things are too much even for trace2
 
     FD_ZERO(&readfds);
     FD_ZERO(&writefds);

@@ -84,34 +84,34 @@ void unit_test_config_file_remove_extra_spaces_and_comments_from_config_line() {
 
   rc=remove_extra_spaces_and_comments_from_config_line("",buf,sizeof(buf));
   ut_assert_string_match("empty string", "", buf);
-  ut_assert_int_match("empty string rc",0,rc);
+  ut_assert_int_match("empty string rc",1,rc);
 
   rc=remove_extra_spaces_and_comments_from_config_line("# comment",buf,sizeof(buf));
   ut_assert_string_match("comment", "", buf);
-  ut_assert_int_match("comment rc",0,rc);
+  ut_assert_int_match("comment rc",1,rc);
 
   rc=remove_extra_spaces_and_comments_from_config_line("  # comment",buf,sizeof(buf));
   ut_assert_string_match("comment w/ leading space", "", buf);
-  ut_assert_int_match("comment w/ leading space rc",0,rc);
+  ut_assert_int_match("comment w/ leading space rc",1,rc);
 
   rc=remove_extra_spaces_and_comments_from_config_line("  one two    three # comment",buf,sizeof(buf));
   ut_assert_string_match("token 01", "one two three", buf);
-  ut_assert_int_match("token 01 rc",0,rc);
+  ut_assert_int_match("token 01 rc",1,rc);
 
   rc=remove_extra_spaces_and_comments_from_config_line("  one \"two  three\" # comment",buf,sizeof(buf));
   ut_assert_string_match("double quote 01", "one \"two  three\"", buf);
-  ut_assert_int_match("double quote 01 rc", 0, rc);
+  ut_assert_int_match("double quote 01 rc", 1, rc);
 
   rc=remove_extra_spaces_and_comments_from_config_line("  one \'two  three\' # comment",buf,sizeof(buf));
   ut_assert_string_match("single quote 01", "one \'two  three\'", buf);
-  ut_assert_int_match("single quote 01 rc", 0, rc);
+  ut_assert_int_match("single quote 01 rc", 1, rc);
 
   rc=remove_extra_spaces_and_comments_from_config_line("  one \'two  three # comment",buf,sizeof(buf));
-  ut_assert_int_match("unterminated quote 01 rc", 1, rc);
+  ut_assert_int_match("unterminated quote 01 rc", 0, rc);
 
   rc=remove_extra_spaces_and_comments_from_config_line("  one \\\"two  three # comment",buf,sizeof(buf));
   ut_assert_string_match("escape 01", "one \"two three", buf);
-  ut_assert_int_match("escape 01 rc", 0, rc);
+  ut_assert_int_match("escape 01 rc", 1, rc);
 }
 
 void unit_test_config_file() {

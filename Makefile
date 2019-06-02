@@ -14,7 +14,7 @@
 
 CC=gcc
 CFLAGS=
-LDFLAGS=
+LDFLAGS=-lpthread
 
 OBJFILES = log.o log_level.o log_file.o\
         string2.o server.o client_connection.o config_file.o \
