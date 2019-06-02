@@ -187,7 +187,7 @@ void read_from_child(char *label, ssh_tunnel *ssh, int fd) {
 
 // Main loop
 //int server(int port, port_forward *port_forward_pool) {
-int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tunnel *ssh_tunnel_list) {
+int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tunnel *ssh_tunnel_list, log_config *main_log_config) {
 
   //if (signal(SIGPIPE,signal_callback_handler) == SIG_ERR) {
   //  unexpected_exit(92,"signal()");
@@ -217,6 +217,7 @@ int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tun
   int thread_msg_fd = msg_pipe[0];
 
   // initialize proxy instances & all listening services
+  thread_local_set_log_config(NULL);
   for (proxy_instance *proxy = proxy_instance_list; proxy; proxy = proxy->next) {
     thread_local_set_proxy_instance(proxy); // for any log output generated during this initialization work
     for (service *srv = proxy->service_list; srv; srv=srv->next) {
@@ -226,6 +227,7 @@ int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tun
   } 
   thread_local_set_service(NULL);
   thread_local_set_proxy_instance(NULL); // TODO FIXME setup default logfile
+  thread_local_set_log_config(main_log_config);
 
   time_t proxy_start_time = time(NULL);
 
@@ -269,6 +271,7 @@ int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tun
       unexpected_exit(87,"select()");
     }
 
+    thread_local_set_log_config(NULL);
     for (proxy_instance *proxy=proxy_instance_list; proxy; proxy = proxy -> next) {
       thread_local_set_proxy_instance(proxy); // for log messages
       for (service *srv = proxy->service_list; srv; srv=srv->next) {
@@ -281,6 +284,7 @@ int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tun
     }
     thread_local_set_service(NULL);
     thread_local_set_proxy_instance(NULL);
+    thread_local_set_log_config(main_log_config);
 
     if (FD_ISSET(thread_msg_fd,&errorfds)) { // more tedium
       error("Error on thread_msg pipe. Exiting.");
@@ -311,6 +315,7 @@ int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tun
     }
 
     // Create new threads to handle socket connection
+    thread_local_set_log_config(NULL);
     for (proxy_instance *proxy=proxy_instance_list; proxy; proxy = proxy -> next) {
       thread_local_set_proxy_instance(proxy);
       for (service *srv = proxy->service_list; srv; srv=srv->next) {
@@ -330,13 +335,16 @@ int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tun
     }
     thread_local_set_service(NULL);
     thread_local_set_proxy_instance(NULL);
+    thread_local_set_log_config(main_log_config);
 
     // clean up any exited / deleted connections
+    thread_local_set_log_config(NULL);
     for (proxy_instance *proxy=proxy_instance_list; proxy; proxy = proxy -> next) {
       thread_local_set_proxy_instance(proxy);
       proxy->client_connection_list = cleanup_connections(proxy->client_connection_list);
     }
     thread_local_set_proxy_instance(NULL);
+    thread_local_set_log_config(main_log_config);
 
     // check on SSH tunnels
     check_ssh_tunnels(proxy_instance_list, ssh_tunnel_list);
@@ -359,6 +367,7 @@ int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tun
       } else {
         trace2("No JSON For us :(");
       }
+      thread_local_set_log_config(NULL);
       for (proxy_instance *proxy=proxy_instance_list; proxy ; proxy = proxy -> next) {
         thread_local_set_proxy_instance(proxy);
         for (client_connection *con = proxy->client_connection_list; con ; con=con->next) {
@@ -374,6 +383,8 @@ int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tun
           }
         }
       }
+      thread_local_set_proxy_instance(NULL);
+      thread_local_set_log_config(main_log_config);
       if (json) {
         free(json);
       } 

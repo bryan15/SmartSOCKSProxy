@@ -26,6 +26,18 @@ bastion and routes the connection through SSH.
     Because SQLDeveloper circumvents JVM SOCKS5 support.  
 
 Running "./smartsocksproxy -h" provides a brief help summary. 
+## Build
+
+### React
+
+To keep things simple, this project uses React without a build step. To download pre-compiled react components:
+
+    make react
+
+References:
+
+ - https://medium.com/@chrislewisdev/react-without-npm-babel-or-webpack-1e9a6049714
+ - https://shinglyu.com/web/2018/02/08/minimal-react-js-without-a-build-step-updated.html
 
 ## Configuration
 

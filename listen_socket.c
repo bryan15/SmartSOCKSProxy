@@ -56,6 +56,7 @@ int listen_socket(char *listenInterface, int port) {
 
   // security check
   if (strncmp(listenInterface,"127.",4) != 0) {
+    error("listenInterface is set to %s",listenInterface);
     error("I'm not sure what you're trying to do, but listening on any interface");
     error("other than the loopback interface poses a serious security risk.");
     unexpected_exit(35,"invalid listen interface"); 

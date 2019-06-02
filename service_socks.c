@@ -470,7 +470,7 @@ service_socks *parse_service_socks_spec(char *strIn) {
 
   // apply default to optional first part: the local address to bind to
   int index = 0;
-  if (okay && parts == 3) {
+  if (okay && parts == 1) {
     index++;
     strncpy(socks->srv.bind_address,"127.0.0.1",sizeof(socks->srv.bind_address)-1);
     trace2("part %i:  %s  (default)", index,socks->srv.bind_address);

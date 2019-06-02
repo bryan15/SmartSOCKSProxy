@@ -13,6 +13,10 @@
 #include"ssh_tunnel.h"
 #include"unit_test.h"
 #include"string2.h"
+#include"service.h"
+#include"service_socks.h"
+#include"service_port_forward.h"
+#include"service_http.h"
 
 #define MAX_LINE_LENGTH 10240
 
@@ -314,8 +318,44 @@ int config_file_parse_proxy_instance_entry(char *filename, int line_num, char *l
     }
     return 1;
   }
+  
+  // socks 4/5 server
+  help = "socksServer ";
+  if (config_set_string(filename, line_num, line, "proxy", proxy->name, "socksServer ",help, stringBuf, sizeof(stringBuf))) {
+    service_socks *socks_tmp = parse_service_socks_spec(stringBuf);
+    if (socks_tmp == NULL) {
+      error("USAGE: %s",help);
+      return 0;
+    }
+    proxy->service_list = insert_service(proxy->service_list, (service*)socks_tmp);
+    return 1;
+  }
 
-  // TODO: service
+  // SSH port-forward
+  help = "portForward ";
+  if (config_set_string(filename, line_num, line, "proxy", proxy->name, "portForward ",help, stringBuf, sizeof(stringBuf))) {
+    service_port_forward *port_forward_tmp = parse_service_port_forward_spec(stringBuf);
+    if (port_forward_tmp == NULL) {
+      error("USAGE: %s",help);
+      return 0;
+    }
+    proxy->service_list = insert_service(proxy->service_list, (service*)port_forward_tmp);
+    return 1;
+  }
+
+  // HTTP Server for viewing SmartSOCKSProxy status
+  help = "httpServer ";
+  if (config_set_string(filename, line_num, line, "proxy", proxy->name, "httpServer ",help, stringBuf, sizeof(stringBuf))) {
+    service_http *http_tmp = parse_service_http_spec(stringBuf);
+    if (http_tmp == NULL) {
+      error("USAGE: %s",help);
+      return 0;
+    }
+    proxy->service_list = insert_service(proxy->service_list, (service*)http_tmp);
+    return 1;
+  }
+
+  
   // TODO: routing rules
 
   return 0;
@@ -348,8 +388,13 @@ int config_file_parse_ssh_tunnel_entry(char *filename, int line_num, char *line,
 int config_file_parse(log_file **log_file_list, log_file *log_file_default, 
                       log_config *log_config_main, 
                       proxy_instance** proxy_instance_list, proxy_instance* proxy_default, 
-                      ssh_tunnel** ssh_tunnel_list, ssh_tunnel *ssh_default, char* filename) {
+                      ssh_tunnel** ssh_tunnel_list, ssh_tunnel *ssh_default, 
+                      char* filename, char **filename_stack, int filename_stack_size, int filename_stack_index) {
+
   debug("Reading config file '%s'",filename);
+  filename_stack[filename_stack_index]=filename;   
+  filename_stack_index++;
+
   int fd = open(filename,O_RDONLY);
   if ( fd < 0 ) {
     error("Cannot open config file '%s'",filename);
@@ -389,6 +434,28 @@ int config_file_parse(log_file **log_file_list, log_file *log_file_default,
     char *line = buf2;
 
     if (strlen(line)==0) {
+      continue;
+    }
+
+    char include_filename[8192];
+    if (config_set_string(filename, line_num, line, "main", "", "include ","include <file_name>", include_filename, sizeof(include_filename))) {
+      // we've been asked to include a file. First, let's check if we've already included the file - no infinite loops for us! I hope. 
+      int found_file_in_stack = 0;
+      for (int i=0; !found_file_in_stack && i < filename_stack_index; i++) {
+        if (strcmp(filename_stack[i],include_filename)==0) {
+          found_file_in_stack=1;
+        }
+      }
+      if (found_file_in_stack) {
+        warn("Attempt to include file \"%s\" blocked; we've already included it, and recursive config files is disallowed.",include_filename);
+      } else if (filename_stack_index >= filename_stack_size) {
+        warn("Attempt to include file \"%s\" blocked; include file recursion cannot go deeper than %i", include_filename, filename_stack_size);
+      } else {
+        config_file_parse(log_file_list, log_file_default, log_config_main, 
+                      proxy_instance_list, proxy_default, 
+                      ssh_tunnel_list, ssh_default, 
+                      include_filename, filename_stack, filename_stack_size, filename_stack_index);
+      }
       continue;
     }
 

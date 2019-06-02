@@ -96,16 +96,16 @@ int main(int argc,char **argv) {
 
   srand(time(NULL));
 
+  #define CONFIG_FILENAME_STACK_SIZE 200 // arbitrarily picked.
+  char* filename_stack[CONFIG_FILENAME_STACK_SIZE+1];
   char option;
-  service_port_forward *port_forward_tmp=NULL;
-  service_socks *socks_tmp=NULL;
-  service_http *http_tmp=NULL;
-  proxy_instance *proxy_instance_tmp=NULL;
-  ssh_tunnel* ssh_tmp=NULL;
   while ((option = getopt(argc,argv, "c:dv:V:h")) != -1) {
     switch(option) {
       case 'c':
-        if (!config_file_parse(&log_file_list, log_file_default, &main_log_config, &proxy_instance_list, proxy_instance_default, &ssh_tunnel_list, ssh_tunnel_default, optarg)) {
+        if (!config_file_parse(&log_file_list, log_file_default, &main_log_config, 
+                               &proxy_instance_list, proxy_instance_default, 
+                               &ssh_tunnel_list, ssh_tunnel_default, 
+                               optarg, filename_stack, CONFIG_FILENAME_STACK_SIZE, 0)) {
           exit(1);
         }
         break;
@@ -183,6 +183,6 @@ int main(int argc,char **argv) {
     log_file_open(log);
   }
 
-  return server(log_file_list, proxy_instance_list, ssh_tunnel_list);
+  return server(log_file_list, proxy_instance_list, ssh_tunnel_list, &main_log_config);
 }
 
