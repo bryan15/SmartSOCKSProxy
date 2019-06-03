@@ -92,7 +92,7 @@ class SmartSOCKSProxy extends React.Component {
 
   render() {
     if (!this.state.connectionState.hasOwnProperty('proxyInstance')) {
-      return <h3>waiting for response from SmartSOCKSProxy...</h3>;
+      return <h3>waiting for response from SmartSocksProxy...</h3>;
     }
 
     let conState=this.state.connectionState;
@@ -101,7 +101,7 @@ class SmartSOCKSProxy extends React.Component {
 
     return (
       <div>
-        <h1>SmartSOCKSProxy</h1>
+        <h1>SmartSocksProxy</h1>
         {Object.values(sshTunnel).map( sshTunnel => {
             return(
               <SshTunnel key={"ssh_"+sshTunnel.name} sshTunnel={sshTunnel} />
@@ -116,7 +116,7 @@ class SmartSOCKSProxy extends React.Component {
           return(
             <ProxyInstance key={"tab_"+proxyInstance.name} proxyInstance={proxyInstance} />
         )})}
-        <p><small><small>Version {conState.version} built on {conState.buildDate}</small></small></p>
+        <p><small><small>Version {conState.version} built on {conState.buildDate} <a href="https://github.com/bryan15/SmartSOCKSProxy">Source</a></small></small></p>
       </div>
     );
   }
