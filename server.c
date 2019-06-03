@@ -393,7 +393,12 @@ int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tun
         free(json);
       } 
     } 
+
+    for (log_file* log=log_file_list; log; log=log->next) {
+      log_file_rotate(log);
+    }
   } 
+
 
   trace("Main loop exited.");
   return 0;

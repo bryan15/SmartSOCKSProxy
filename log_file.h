@@ -26,12 +26,12 @@ typedef struct log_file {
 
 void log_file_init();
 log_file *new_log_file(char *filename);
-log_file *insert_log_file(log_file *head, log_file *log);
 log_file *new_log_file_from_template(log_file *template, char *filename);
-char *log_file_str(log_file *log, char *buf, int buflen);
 log_file *find_log_file(log_file *head, char *filename);
 log_file *find_or_create_log_file(log_file **head, log_file *template, char *filename);
-void log_file_open(log_file *log);
+log_file *insert_log_file(log_file *head, log_file *log);
+char *log_file_str(log_file *log, char *buf, int buflen);
 void log_file_write(log_file *log, char *buf, int buflen);
+void log_file_rotate(log_file *log);
 
 #endif // LOG_FILE_H

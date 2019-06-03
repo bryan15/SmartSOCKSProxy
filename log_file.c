@@ -80,47 +80,7 @@ log_file *find_log_file(log_file *head, char *filename) {
   return NULL;
 }
 
-void log_file_write(log_file *log, char *buf, int buflen) {
-  int fd = STDOUT_FILENO;
-  if (log && log->fd >= 0) {
-    fd = log->fd;
-  }
-  pthread_mutex_lock(&log_file_mutex);
-  write(fd,buf,buflen);
-  if (log) {
-    log->byte_count += buflen;
-  }
 
-  if (log && log->can_rotate && log->byte_count >= log->byte_count_max) {
-    close(log->fd);
-    log->fd=-1;
-    int i;
-    for (i=log->file_rotate_count-1; i>=0; i--) {
-      char oldfile[LOG_FILE_NAME_MAX_LEN];
-      char newfile[LOG_FILE_NAME_MAX_LEN];
-      if (i>0) {
-        sprintf(oldfile,"%s.%i",log->file_name,i);
-      } else {
-        strcpy(oldfile,log->file_name);
-      }
-      sprintf(newfile,"%s.%i",log->file_name,i+1);
-      int rc;
-      rc=rename(oldfile,newfile);
-      if (rc<0 && errno != ENOENT) { // ENOENT = oldfile doesn't exist, which is fine in our case here
-        char buf[LOG_FILE_NAME_MAX_LEN + 2048];
-        sprintf(buf,"rename(%s,%s): %s\n",oldfile,newfile, strerror(errno));
-        write(STDERR_FILENO,buf,strlen(buf));
-        unexpected_exit(4,"rename()");
-      }
-    }
-    log_file_open(log); 
-  }
-  pthread_mutex_unlock(&log_file_mutex);
-}
-
-// Not much error checking here. 
-// I really assume we can talk to the filesystem :-/
-// IMPROVEMENT: better error reporting to the user. Esp. around chmod
 void log_file_open(log_file *log) {
   // check if already open
   if (log->fd >= 0) {
@@ -133,35 +93,147 @@ void log_file_open(log_file *log) {
   }  
   
   int rc;
-  rc=open( log->file_name, O_CREAT | O_APPEND | O_RDWR | O_EXLOCK | O_NONBLOCK );
+  do {
+    rc=open( log->file_name, O_CREAT | O_APPEND | O_RDWR | O_EXLOCK | O_NONBLOCK );
+  } while (rc < 0 && errno == EINTR);
   if (rc < 0) {
     char buf[LOG_FILE_NAME_MAX_LEN+2000];
     sprintf(buf,"open(%s): %s\n",log->file_name, strerror(errno));
     write(STDERR_FILENO,buf,strlen(buf));
-    unexpected_exit(1,"open()");
+    // hm. maybe let's not exit not exit. We can try again later. 
+    // unexpected_exit(1,buf);
+  } else {
+    log->fd = rc; 
+    chmod(log->file_name,0644);
+    log->byte_count = lseek(log->fd, 0, SEEK_CUR);
   }
-  chmod(log->file_name,0644);
-  log->fd = rc; 
-  log->byte_count = lseek(log->fd, 0, SEEK_CUR);
 }
+
+void log_file_write2(log_file *log, char *buf, int buflen) {
+  write(STDOUT_FILENO,buf,buflen);
+}
+
+void log_file_write(log_file *log, char *buf, int buflen) {
+  int fd = STDOUT_FILENO;
+  pthread_mutex_lock(&log_file_mutex);
+  if (log) {
+    fd = log->fd;
+  }
+  if (log && fd < 0) {
+    log_file_open(log); 
+    fd = log->fd;
+  }
+  if (fd < 0) {
+    pthread_mutex_unlock(&log_file_mutex);
+    char buf[8192];
+    if (log) {
+      snprintf(buf,sizeof(buf)-1,"cannot write to logfile: %s\n",log->file_name);
+    } else {
+      snprintf(buf,sizeof(buf)-1,"cannot write to logfile\n");
+    }
+    buf[sizeof(buf)-1]=0;
+    write(STDERR_FILENO,buf,strlen(buf));
+    return;
+  }
+  int rc; 
+  do {
+    rc = write(fd,buf,buflen);
+  } while (rc < 0 && errno == EINTR);
+  // if we get other errors, like EAGAIN, simply drop this log message. Sorry, best effort, I tried. 
+  if (log) {
+    log->byte_count += buflen;
+  }
+  pthread_mutex_unlock(&log_file_mutex);
+}
+
 
 // log_files are somewhat unique in that they're re-used by multiple other objects. 
 // Therefore, it's helpful to have a utility function to find a pre-existing 
 // log_file, or create one if it doesn't exist. 
 log_file *find_or_create_log_file(log_file **head, log_file *template, char *filename) {
-  log_file *log = find_log_file(*head, filename);
-  if (log) {
-    return log;
+  log_file *existing_log = find_log_file(*head, filename);
+  if (existing_log) {
+    return existing_log;
   }
+  log_file *new_log = NULL;
   if (template) {
-    log = new_log_file_from_template(template, filename);
+    new_log = new_log_file_from_template(template, filename);
   } else {
-    log_file *new = new_log_file(filename);
+    new_log = new_log_file(filename);
   }
-  if (log) {
-    *head = insert_log_file(*head,log);
+  if (new_log) {
+    *head = insert_log_file(*head,new_log);
   }
-  return log;
+  return new_log;
 }
+
+// Check if this logfile requires rotation
+void log_file_rotate(log_file *log) {
+  long size; 
+  int rc;
+
+  if (!log) {
+    return;
+  }
+  if (!log->can_rotate) {
+    return;
+  }
+
+  pthread_mutex_lock(&log_file_mutex);
+  size = log->byte_count;
+  pthread_mutex_unlock(&log_file_mutex);
+
+  if (size < log->byte_count_max) {
+    return;
+  }
+
+  // tricky business, if we don't do this right. 
+  // This part does a lot of renames. Notices that other
+  // threads can continue writing to log->fd even after
+  // it's been renamed. That should be fine. 
+  int i;
+  for (i=log->file_rotate_count-1; i>=0; i--) {
+    char oldfile[LOG_FILE_NAME_MAX_LEN];
+    char newfile[LOG_FILE_NAME_MAX_LEN];
+    if (i>0) {
+      sprintf(oldfile,"%s.%i",log->file_name,i);
+    } else {
+      strcpy(oldfile,log->file_name);
+    }
+    sprintf(newfile,"%s.%i",log->file_name,i+1);
+    // Since this function executes from the main thread (only!), it is safe
+    // to call regular logging methods. Assuming logging works at all.
+    debug("logfile rotate %s -> %s",oldfile,newfile);
+    rc=rename(oldfile,newfile);
+    if (rc<0 && errno != ENOENT) { // ENOENT = oldfile doesn't exist, which is fine in our case here
+      char buf[LOG_FILE_NAME_MAX_LEN + 2048];
+      sprintf(buf,"rename(%s,%s): %s\n",oldfile,newfile, strerror(errno));
+      write(STDERR_FILENO,buf,strlen(buf));
+      unexpected_exit(4,buf);
+    }
+  }
+
+  // This is where we break ties with the current logfile
+  // and force a new one to open. Note! The rename must happen 
+  // before we change the file descriptor :D because as soon as
+  // we touch the file descriptor, another thread might instantly
+  // try to open a new file for writing. What would happen if we 
+  // hadn't already renamed the file then? Exactly.
+  int fd;
+  pthread_mutex_lock(&log_file_mutex);
+  fd=log->fd;
+  log->fd=-1;
+  log->byte_count=0;
+  pthread_mutex_unlock(&log_file_mutex);
+  do {
+    rc=close(fd); 
+  } while (rc<0 && errno == EINTR); 
+  if (rc < 0) {
+    char buf[2048]; 
+    snprintf(buf,2048,"close(%s) = %i, fd=%i, errno = %i %s",log->file_name, rc, fd, errno, strerror(errno));
+    unexpected_exit(3,buf);
+  }
+}
+
 
 
