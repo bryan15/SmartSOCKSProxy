@@ -31,10 +31,15 @@ proxy_instance *new_proxy_instance() {
 
 proxy_instance *insert_proxy_instance(proxy_instance *head, proxy_instance *pinst) {
   // I don't expect to ever destroy a proxy instance, so no need for any fancy list structure
-  if (pinst) {
-    pinst->next = head;
-  }
-  return pinst; // pinst is the new head
+  // Although... I'm lazy in javascript, so I append to the end so JSON ordering matches the config file.
+  if (head == NULL) {
+    return pinst; // the new head!
+  } 
+  proxy_instance *pp;
+  for (pp=head; pp->next != NULL; pp=pp->next); 
+  pp->next=pinst;
+  pinst->next = NULL; 
+  return head;
 }
 
 proxy_instance *new_proxy_instance_from_template(proxy_instance *template) {

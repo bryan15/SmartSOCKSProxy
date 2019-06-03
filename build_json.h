@@ -6,6 +6,6 @@
 
 #include"proxy_instance.h"
 
-char *build_json(proxy_instance *proxy_instance_list, time_t proxy_start_time);
+char *build_json(proxy_instance *proxy_instance_list, time_t proxy_start_time, ssh_tunnel *ssh_tunnel_list);
 
 #endif // BUILD_JSON_H

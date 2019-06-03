@@ -363,7 +363,7 @@ int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tun
       }
     }
     if (needJSON) {
-      char *json=build_json(proxy_instance_list,proxy_start_time);
+      char *json=build_json(proxy_instance_list, proxy_start_time, ssh_tunnel_list);
       long jsonLen=0;
       if (json != NULL) {
         jsonLen=strlen(json);

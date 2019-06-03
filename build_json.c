@@ -283,7 +283,33 @@ void add_proxy_instance(char **buf, int *size, char **ptr, proxy_instance *proxy
 
 ////////////////////////// 
 
-char *build_json(proxy_instance *proxy_instance_list, time_t proxy_start_time) {
+void add_ssh_tunnel(char **buf, int *size, char **ptr, ssh_tunnel *ssh) {
+  add_to_buf(buf,size,ptr,"\"");
+  add_to_buf(buf,size,ptr,ssh->name);
+  add_to_buf(buf,size,ptr,"\":{"); // this ssh_tunnel
+ 
+  add_string(buf,size,ptr,"name",ssh->name);
+  add_comma(buf,size,ptr);
+
+  if (ssh->pid > 0) {
+    add_to_buf(buf,size,ptr,"\"pid\":"); 
+    add_to_buf_uint(buf,size,ptr,ssh->pid);
+    add_to_buf(buf,size,ptr,",");  // this ssh_tunnel
+
+    add_to_buf(buf,size,ptr,"\"timeStart\":"); 
+    add_to_buf_uint(buf,size,ptr,ssh->start_time);
+    add_to_buf(buf,size,ptr,",");  // this ssh_tunnel
+  }
+
+  add_to_buf(buf,size,ptr,"\"socksPort\":"); 
+  add_to_buf_int(buf,size,ptr,ssh->socks_port);
+  add_to_buf(buf,size,ptr,"}");  // this ssh_tunnel
+}
+
+////////////////////////// 
+
+
+char *build_json(proxy_instance *proxy_instance_list, time_t proxy_start_time, ssh_tunnel *ssh_tunnel_list) {
   int size = default_size;
   char *ptr; // tracks end of string to make appending faster
   char *buf=malloc(size);
@@ -314,7 +340,24 @@ char *build_json(proxy_instance *proxy_instance_list, time_t proxy_start_time) {
     needComma=1;
     add_proxy_instance(&buf,&size,&ptr, proxy);
   }
-  add_to_buf(&buf,&size,&ptr,"}"); // proxy_instance
+  add_to_buf(&buf,&size,&ptr,"},"); // proxy_instance
+
+  // ssh_tunnel section
+  // no need for mutexes here since the main thread is the only one who
+  // modifies ssh_tunnel structs.
+  add_to_buf(&buf,&size,&ptr,"\"sshTunnel\":{");
+  needComma=0;
+  for (ssh_tunnel *ssh=ssh_tunnel_list; ssh ; ssh = ssh -> next) {
+    if (ssh->socks_port == 0) {  // don't print our "special" tunnels
+      continue;
+    }
+    if (needComma) add_to_buf(&buf,&size,&ptr,","); // bloody json doesn't allow trailing comma's
+    needComma=1;
+    add_ssh_tunnel(&buf,&size,&ptr, ssh);
+  }
+  add_to_buf(&buf,&size,&ptr,"}"); // ssh_tunnel
+  
+
 
   add_to_buf(&buf,&size,&ptr,"}"); // main 
 

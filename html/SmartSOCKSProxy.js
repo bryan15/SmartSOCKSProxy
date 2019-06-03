@@ -97,11 +97,15 @@ class SmartSOCKSProxy extends React.Component {
 
     let conState=this.state.connectionState;
     let proxyInst=conState.proxyInstance;
+    let sshTunnel=conState.sshTunnel;
 
     return (
       <div>
         <h1>SmartSOCKSProxy</h1>
-        <p><small><small>Version {conState.version} built on {conState.buildDate}</small></small></p>
+        {Object.values(sshTunnel).map( sshTunnel => {
+            return(
+              <SshTunnel key={"ssh_"+sshTunnel.name} sshTunnel={sshTunnel} />
+          )})}
         <div key="tab_bar" className="tab">
           {Object.values(proxyInst).map( proxyInstance => {
             return(
@@ -112,6 +116,7 @@ class SmartSOCKSProxy extends React.Component {
           return(
             <ProxyInstance key={"tab_"+proxyInstance.name} proxyInstance={proxyInstance} />
         )})}
+        <p><small><small>Version {conState.version} built on {conState.buildDate}</small></small></p>
       </div>
     );
   }
