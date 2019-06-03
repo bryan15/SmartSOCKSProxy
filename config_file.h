@@ -17,5 +17,6 @@ int config_file_parse(log_file **log_file_list, log_file *log_file_default,
 int read_line(int fd, char* buf, int buflen, int* cr, int* lf, char *filename, int line_num);
 int remove_extra_spaces_and_comments_from_config_line(char *inbuf, char *outbuf, int outbuflen);
 int parse_line(proxy_instance* proxy_instance_list, ssh_tunnel* ssh_tunnel_list, char *filename, int line_num, char *raw);
+int replace_environment_variables_in_string(char *filename, int line_num, char *inbuf, char *outbuf, int outbuflen);
 
 #endif // CONFIG_FILE_H

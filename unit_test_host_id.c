@@ -85,7 +85,7 @@ void unit_test_host_id() {
   host_id_set_port(id, port); 
   ut_assert_int_match("host_id_get_port()", port, host_id_get_port(id));
   ut_assert_int_match("id->port", port, id->port);
-  ut_assert_int_match("id->addr.sin_addr.s_port", port, id->addr.sa_in.sin_port);
+  ut_assert_int_match("id->addr.sin_addr.s_port", port, ntohs(id->addr.sa_in.sin_port));
   
   char* ip_str="1.2.3.4"; 
   char  buf[1024];
@@ -95,7 +95,7 @@ void unit_test_host_id() {
   sin.sin_len = sizeof(sin);
   sin.sin_family = AF_INET;
   inet_pton(AF_INET,ip_str,&sin.sin_addr);
-  ;sin.sin_port=port;
+  sin.sin_port=htons(port);
   host_id_set_addr_in(id, &sin);
   char *tmp=host_id_addr_str(id, buf, sizeof(buf));
   if (tmp == NULL) { 
@@ -104,7 +104,7 @@ void unit_test_host_id() {
   ut_assert_string_match("host_id_set_addr_in() -> host_id_addr_str()", ip_str, buf);
   ut_assert_int_match("host_id_get_port()", port, host_id_get_port(id));
   ut_assert_int_match("id->port", port, id->port);
-  ut_assert_int_match("id->addr.sin_addr.s_port", port, id->addr.sa_in.sin_port);
+  ut_assert_int_match("id->addr.sin_addr.s_port", port, ntohs(id->addr.sa_in.sin_port));
 
   ut_name("host_id addr byte array");
   unsigned char ubuf[40];

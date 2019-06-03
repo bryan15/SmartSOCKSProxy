@@ -1,6 +1,7 @@
 // Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: MIT-0
 
+#include<stdlib.h>
 #include<fcntl.h>
 #include<unistd.h>
 #include<errno.h>
@@ -114,9 +115,44 @@ void unit_test_config_file_remove_extra_spaces_and_comments_from_config_line() {
   ut_assert_int_match("escape 01 rc", 1, rc);
 }
 
+void unit_test_replace_environment_variables_in_string() {
+  int rc; 
+  char buf[200];
+  setenv("testvar","abc",1);
+
+  ut_name("config_file.unit_test_replace_environment_variables_in_string()");
+
+  rc=replace_environment_variables_in_string("somefile",10, "",buf,sizeof(buf));
+  ut_assert_int_match("empty string 1", 1, rc);
+  ut_assert_string_match("empty string 2", "", buf);
+  
+  rc=replace_environment_variables_in_string("somefile",10, "simple",buf,sizeof(buf));
+  ut_assert_int_match("simple 1", 1, rc);
+  ut_assert_string_match("simple 2", "simple", buf);
+
+  rc=replace_environment_variables_in_string("somefile",10, "xx${testvar}yy",buf,sizeof(buf));
+  ut_assert_int_match("basic replace 1", 1, rc);
+  ut_assert_string_match("basic replace 2", "xxabcyy", buf);
+
+  rc=replace_environment_variables_in_string("somefile",10, "xx${testvar",buf,sizeof(buf));
+  ut_assert_int_match("error A 1", 0, rc);
+
+  rc=replace_environment_variables_in_string("somefile",10, "xx${testva-r",buf,sizeof(buf));
+  ut_assert_int_match("error B 1", 0, rc);
+
+  rc=replace_environment_variables_in_string("somefile",10, "xx${}yy",buf,sizeof(buf));
+  ut_assert_int_match("error C 1", 0, rc);
+
+  rc=replace_environment_variables_in_string("somefile",10, "xx${does_not_exists_I_hope}yy",buf,sizeof(buf));
+  ut_assert_int_match("env variable does not exist 1", 1, rc);
+  ut_assert_string_match("env variable does not exist 2", "xxyy", buf);
+
+}
+
 void unit_test_config_file() {
   unit_test_config_file_read_line();
   unit_test_config_file_remove_extra_spaces_and_comments_from_config_line();
+  unit_test_replace_environment_variables_in_string();
 }
 
 

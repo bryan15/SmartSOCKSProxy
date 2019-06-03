@@ -20,6 +20,10 @@
 
 #define MAX_LINE_LENGTH 10240
 
+
+// IMPROVEMENT: roll variable substitution into the initial pass so that the $ can be escaped. 
+// IMPROVEMENT: This whole file could use a rewrite. Or replace with something off-the-shelf. 
+
 // returns: 
 //   0 = error
 //   1 = null-terminated line returned in 'buf', still more to read from file.
@@ -138,6 +142,73 @@ int remove_extra_spaces_and_comments_from_config_line(char *inbuf, char *outbuf,
   }
   return 1;
 }
+
+// replace ${blah} with the value of 'blah' from the environment. 
+// String is coped from inbuf to outbuf at the same time. 
+// TODO: this function does not protect against buffer overruns
+int replace_environment_variables_in_string(char *filename, int line_num, char *inbuf, char *outbuf, int outbuflen) {
+  char *start=NULL;
+  char *cur;
+  char *cur_out;
+  char value[8192]; 
+  char name[8192]; 
+
+  for (cur=inbuf, cur_out=outbuf; *cur; cur++) {
+    if (*cur =='$' && *(cur+1) == '{' ) {
+      start = cur + 2;
+      cur++;
+    } else if (start != NULL) {
+      if ( (*cur >= 'a' && *cur <= 'z') || 
+           (*cur >= 'A' && *cur <= 'Z') ||
+           (*cur >= '0' && *cur <= '9') ||
+           (*cur == '_' ) ) {
+        // still a valid environment variable. Keep going.
+      } else if (*cur == '}') {
+        // ending brace. Perform substitution. 
+        if ( cur <= start) {
+          error("Invalid environment variable substitution - variable must be longer than 0 characters - in %s line %i: %s",filename, line_num, inbuf);
+          *cur_out=0;
+          return 0;
+        }
+        int name_len = cur - start;
+        if (name_len > sizeof(name)) {
+          error("Invalid environment variable name is insanely too long in %s line %i - seriously, it's %i bytes long. That's crazy.",filename, line_num, name_len);
+          *cur_out=0;
+          return 0;
+        }
+        strncpy(name,start,name_len);
+        name[name_len]=0; 
+        char *tmp = getenv(name); 
+        if (tmp == NULL) {
+          warn("Environment variable '%s' does not exist.", name);
+          value[0]=0;
+        } else { 
+          strncpy(value,getenv(name),sizeof(value)-1);
+          value[sizeof(value)-1]=0; // just in case. 
+        }
+        int value_len = strlen(value); 
+        info("Substituting variable in %s line %i: ${%s} = %s",filename, line_num, name, value);
+        strncpy(cur_out,value,value_len);
+        cur_out += value_len;
+        start=NULL;
+      } else {
+        // invalid variable specificiation. Print an error message and exit.
+        error("Invalid environment variable substitution in %s line %i: %s",filename, line_num, inbuf);
+        *cur_out=0;
+        return 0;
+      }
+    } else {
+      *cur_out = *cur;
+      cur_out++;
+    }
+  }
+  *cur_out=0;
+  if (start != NULL) {
+    return 0;
+  }
+  return 1;
+}
+
 
 // if line starts-with match, return first position of parameter, else NULL
 char* match_start(char *line, char *match) {
@@ -405,6 +476,7 @@ int config_file_parse(log_file **log_file_list, log_file *log_file_default,
   int lf = 0;
   char buf[MAX_LINE_LENGTH];
   char buf2[MAX_LINE_LENGTH];
+  char buf3[MAX_LINE_LENGTH];
   int rc;
 
   int main=0;
@@ -425,12 +497,15 @@ int config_file_parse(log_file **log_file_list, log_file *log_file_default,
     }
 
     // parse this line
-    trace2("config (%s line %i, %i bytes): %s", filename, line_num, strlen(buf), buf);
-    if (!remove_extra_spaces_and_comments_from_config_line(buf,buf2,sizeof(buf2))) {
+    trace2("config (%s line %i): %s", filename, line_num, buf);
+    if (!remove_extra_spaces_and_comments_from_config_line(buf, buf2, sizeof(buf2))) {
+      return 0;
+    }
+    if (!replace_environment_variables_in_string(filename, line_num, buf2, buf3, sizeof(buf3))) {
       return 0;
     }
 
-    char *line = buf2;
+    char *line = buf3;
 
     if (strlen(line)==0) {
       continue;
