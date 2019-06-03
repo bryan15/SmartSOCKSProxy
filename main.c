@@ -58,6 +58,7 @@ int main(int argc,char **argv) {
   thread_local_set_log_config(NULL);
 
   log_init();
+  log_file_init();
   // main() logging setup
   log_config  main_log_config;
   log_config_init(&main_log_config);
@@ -118,7 +119,6 @@ int main(int argc,char **argv) {
         break;
       case 'V':
         main_log_config.file = find_or_create_log_file(&log_file_list, log_file_default, optarg);
-        log_file_open(main_log_config.file);
         break;
       case 'h':
         help=1;
@@ -177,10 +177,6 @@ int main(int argc,char **argv) {
 
   if (set_ulimit(4096) != 0) {
     unexpected_exit(13,"set_ulimit()");
-  }
-
-  for (log_file *log = log_file_list; log; log=log->next) {
-    log_file_open(log);
   }
 
   return server(log_file_list, proxy_instance_list, ssh_tunnel_list, &main_log_config);

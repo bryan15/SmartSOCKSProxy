@@ -169,13 +169,25 @@ void add_client_connection(char **buf, int *size, char **ptr, client_connection 
     add_int(buf,size,ptr,"socksCommand",con->socks_command);
     add_comma(buf,size,ptr);
 
-    add_string(buf,size,ptr,"remoteAddress",host_id_str(&(con->dst_host_original),tmp,sizeof(tmp)-1));
+    if (host_id_has_name(&con->dst_host_original)) {
+      add_string(buf,size,ptr,"remoteName",host_id_get_name(&con->dst_host_original));
+      add_comma(buf,size,ptr);
+    }
+    if (host_id_has_addr(&con->dst_host_original)) {
+      add_string(buf,size,ptr,"remoteAddress",host_id_addr_str(&con->dst_host_original,tmp,sizeof(tmp)-1));
+      add_comma(buf,size,ptr);
+    }
+    add_int(buf,size,ptr,"remotePort",host_id_get_port(&con->dst_host_original));
     add_comma(buf,size,ptr);
-    add_int(buf,size,ptr,"remotePort",host_id_get_port(&(con->dst_host_original)));
-    add_comma(buf,size,ptr);
-    add_string(buf,size,ptr,"remoteAddressEffective",host_id_str(&(con->dst_host),tmp,sizeof(tmp)-1));
-    add_comma(buf,size,ptr);
-    add_int(buf,size,ptr,"remotePortEffective",host_id_get_port(&(con->dst_host)));
+    if (host_id_has_name(&con->dst_host)) { 
+      add_string(buf,size,ptr,"remoteNameEffective",host_id_get_name(&con->dst_host));
+      add_comma(buf,size,ptr);
+    }
+    if (host_id_has_addr(&con->dst_host)) {
+      add_string(buf,size,ptr,"remoteAddressEffective",host_id_addr_str(&con->dst_host,tmp,sizeof(tmp)-1));
+      add_comma(buf,size,ptr);
+    }
+    add_int(buf,size,ptr,"remotePortEffective",host_id_get_port(&con->dst_host));
     add_comma(buf,size,ptr);
   }
 
@@ -205,9 +217,13 @@ void add_client_connection(char **buf, int *size, char **ptr, client_connection 
     }
   }
 
-  add_string(buf,size,ptr,"sourceAddress",host_id_str(&(con->src_host),tmp,sizeof(tmp)-1));
+  if (host_id_has_name(&con->src_host)) {
+    add_string(buf,size,ptr,"sourceName",host_id_get_name(&con->src_host));
+    add_comma(buf,size,ptr);
+  }
+  add_string(buf,size,ptr,"sourceAddress",host_id_addr_str(&con->src_host,tmp,sizeof(tmp)-1));
   add_comma(buf,size,ptr);
-  add_int(buf,size,ptr,"sourcePort",host_id_get_port(&(con->src_host)));
+  add_int(buf,size,ptr,"sourcePort",host_id_get_port(&con->src_host));
   add_comma(buf,size,ptr);
 
   if (con->end_time>0) {

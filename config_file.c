@@ -282,7 +282,6 @@ int config_file_parse_main_entry(char *filename, int line_num, char *line, log_c
   char stringBuf[8192];
   if (config_set_string(filename, line_num, line, "main", "", "logFilename ","logFilename <file_name>", stringBuf, sizeof(stringBuf))) {
     log_config_main->file = find_or_create_log_file(log_file_list, log_file_default, stringBuf);
-    log_file_open(log_config_main->file);
     return 1;
   }
   char* help="logVerbosity [error|warn|info|debug|trace|trace2]";

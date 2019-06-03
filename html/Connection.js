@@ -10,6 +10,13 @@ class Connection extends React.Component {
     let con=this.props.connection;
     let service=this.props.service;
 
+    let remoteNameOrAddress = "?";
+    if ("remoteName" in con) {
+      remoteNameOrAddress = con.remoteName; 
+    } else if ("remoteAddress" in con) {
+      remoteNameOrAddress = con.remoteAddress; 
+    }
+
     let status = "";
     if (con.timeEnd) {
       status += "Closed ";
@@ -31,7 +38,7 @@ class Connection extends React.Component {
         <div>Connection {con.connectionId} {service.type}{con.socksVersion} &nbsp;
           {con.sourceAddress}:{con.sourcePort} &rarr; &nbsp;
           {con.route} &rarr; &nbsp;
-          {con.remoteAddress}:{con.remotePort} ({con.remoteAddressType}) &nbsp;
+          {remoteNameOrAddress}:{con.remotePort} &nbsp;
           ({con.remoteAddressEffective}) &nbsp;
           Rx {con.bytesRx} Tx {con.bytesTx} &nbsp;
           {status}
@@ -42,7 +49,7 @@ class Connection extends React.Component {
         <div>Connection {con.connectionId} {service.type} &nbsp;
           {service.localAddress}:{service.localPort} &rarr; &nbsp;
           {con.route} &rarr; &nbsp;
-          {con.remoteAddress}:{con.remotePort} ({con.remoteAddressType}) &nbsp;
+          {remoteNameOrAddress}:{con.remotePort} &nbsp;
           ({con.remoteAddressEffective}) &nbsp;
           Rx {con.bytesRx} Tx {con.bytesTx} &nbsp;
           {status}

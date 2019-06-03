@@ -18,6 +18,7 @@ LDFLAGS=-lpthread
 
 OBJFILES = log.o log_level.o log_file.o\
         string2.o server.o client_connection.o config_file.o \
+        dns_util.o \
         service.o service_http.o service_socks.o service_port_forward.o \
         socks_connection.o build_json.o service_thread.o \
         socks5_client.o shuttle.o safe_close.o \
@@ -31,6 +32,7 @@ PROXYOBJFILES = $(OBJFILES) main.o
 UNITTESTOBJFILES = $(OBJFILES) unit_test.o \
 	unit_test_log_level.o \
 	unit_test_config_file.o \
+	unit_test_host_id.o \
 	unit_test_main.o
 
 
@@ -129,6 +131,9 @@ proxy_instance.o: proxy_instance.c
 service.o: service.c
 	$(CC) $(CFLAGS) -c service.c -o service.o
 
+dns_util.o: dns_util.c
+	$(CC) $(CFLAGS) -c dns_util.c -o dns_util.o
+
 safe_close.o: safe_close.c
 	$(CC) $(CFLAGS) -c safe_close.c -o safe_close.o
 
@@ -159,8 +164,17 @@ config_file.o: config_file.c
 unit_test.o: unit_test.c
 	$(CC) $(CFLAGS) -c unit_test.c -o unit_test.o
 
-unit_test_run.o: unit_test_run.c
-	$(CC) $(CFLAGS) -c unit_test_run.c -o unit_test_run.o
+unit_test_main.o: unit_test_main.c
+	$(CC) $(CFLAGS) -c unit_test_main.c -o unit_test_main.o
+
+unit_test_log_level.o: unit_test_log_level.c
+	$(CC) $(CFLAGS) -c unit_test_log_level.c -o unit_test_log_level.o
+
+unit_test_config_file.o: unit_test_config_file.c
+	$(CC) $(CFLAGS) -c unit_test_config_file.c -o unit_test_config_file.o
+
+unit_test_host_id.o: unit_test_host_id.c
+	$(CC) $(CFLAGS) -c unit_test_host_id.c -o unit_test_host_id.o
 
 smartsocksproxy: $(PROXYOBJFILES)
 	$(CC) $(LDFLAGS) $(PROXYOBJFILES) -o smartsocksproxy

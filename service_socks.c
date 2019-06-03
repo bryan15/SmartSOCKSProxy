@@ -174,6 +174,7 @@ int socks5_get_command(client_connection *con) {
     host_id_set_addr_in6_from_byte_array(&con->dst_host,addr,port);
   } else if (address_type == SOCKS5_ADDRTYPE_DOMAIN) { // DNS
     host_id_set_name(&con->dst_host,(char*)addr);
+    host_id_set_port(&con->dst_host,port);
   }
   con->dst_host_original = con->dst_host;
   unlock_client_connection(con);

@@ -12,6 +12,8 @@
 
 route_rule *fixme = NULL;
 
+// FIXME TODO: routing engine
+// This needs to assign a matching rule. 
 int decide_applicable_rule(proxy_instance *proxy, service *srv, client_connection *con) {
   if (!fixme) {
     fixme=new_route_rule();
