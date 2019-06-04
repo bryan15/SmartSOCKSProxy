@@ -17,6 +17,7 @@ typedef struct proxy_instance {
   char name[PROXY_INSTANCE_MAX_NAME_LEN];
   log_config log;
   service *service_list;
+  route_rule *route_rule_list;
   client_connection *client_connection_list;
 } proxy_instance;
 

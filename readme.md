@@ -1,11 +1,19 @@
 # SmartSOCKSProxy
 
-SmartSOCKSProxy is a sock4/5 proxy and SSH manager which intelligently routes TCP connections to where they need to go 
-without resorting to static SSH tunnels. SmartSOCKSProxy allows the client (web browser, java application) to use DNS names
+Routing between network segments is often impaired by NAT or a firewall for security. 
+Gaining access to services behind the firewall requires an authenticated tunnel such as VPN or SSH.
+
+This works fine until we try to access services in multiple network segments at the same time. It's not
+obvious how to route any given connection - should it be routed directly to the IP address,
+go through a VPN, or use SSH as a proxy? Who is responsible for deciding how to route connections, and
+who is responsible for starting and stoping SSH sessions?
+
+SmartSOCKSProxy, that's who.
+
+SmartSOCKSProxy is a sock4/5 proxy and SSH manager coupled with a rules engine to intelligently route network connections to where they need to go 
+without resorting to static SSH port-forwards. SmartSOCKSProxy allows the client (web browser, java application) to use DNS names,
 which may not appear on the local network segment, without resorting to overrides in /etc/hosts (in most cases). 
 
-If a connection to a non-local network segment is requested, SmartSOCKSProxy opens an SSH connection into that segment's
-bastion and routes the connection through SSH.
 
 ## Requirements / Setup:
 

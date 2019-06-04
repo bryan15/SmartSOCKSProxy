@@ -17,6 +17,7 @@
 #include"service_socks.h"
 #include"service_port_forward.h"
 #include"service_http.h"
+#include"route_rule.h"
 
 #define MAX_LINE_LENGTH 10240
 
@@ -373,7 +374,7 @@ int config_file_parse_log_file_entry(char *filename, int line_num, char *line, l
   return 0;
 }
 
-int config_file_parse_proxy_instance_entry(char *filename, int line_num, char *line, proxy_instance *proxy, log_file **log_file_list, log_file *log_file_default) {
+int config_file_parse_proxy_instance_entry(char *filename, int line_num, char *line, proxy_instance *proxy, log_file **log_file_list, log_file *log_file_default, ssh_tunnel *ssh_tunnel_list) {
   char stringBuf[8192];
   if (config_set_string(filename, line_num, line, "proxy", proxy->name, "logFilename ","logFilename <file_name>", stringBuf, sizeof(stringBuf))) {
     proxy->log.file = find_or_create_log_file(log_file_list, log_file_default, stringBuf);
@@ -425,8 +426,20 @@ int config_file_parse_proxy_instance_entry(char *filename, int line_num, char *l
     return 1;
   }
 
+  // add a single routing rule
+  help = "route <routing rule> ";
+  if (config_set_string(filename, line_num, line, "proxy", proxy->name, "route ",help, stringBuf, sizeof(stringBuf))) {
+    route_rule *route = parse_route_rule_spec(stringBuf, filename, line_num, ssh_tunnel_list);
+    if (route == NULL) {
+      error("USAGE: %s",help);
+      return 0;
+    }
+    proxy->route_rule_list = insert_route_rule(proxy->route_rule_list, route);
+    return 1;
+  }
   
-  // TODO: routing rules
+  // TODO: routing rules file
+  // TODO: routing rules dir
 
   return 0;
 }
@@ -572,7 +585,7 @@ int config_file_parse(log_file **log_file_list, log_file *log_file_default,
     if (log_current && config_file_parse_log_file_entry(filename, line_num, line, log_current)) {
       continue;
     }
-    if (proxy_current && config_file_parse_proxy_instance_entry(filename, line_num, line, proxy_current, log_file_list, log_file_default)) {
+    if (proxy_current && config_file_parse_proxy_instance_entry(filename, line_num, line, proxy_current, log_file_list, log_file_default, *ssh_tunnel_list)) {
       continue;
     }
     if (ssh_current && config_file_parse_ssh_tunnel_entry(filename, line_num, line, ssh_current, log_file_list, log_file_default)) {

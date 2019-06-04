@@ -20,11 +20,12 @@ typedef struct route_rule {
   char match_contains[MAX_DNS];
   int  match_port;
 
+  int have_match_ipv4; // boolean, because both values below could legitimately be 0
+  unsigned long match_ipv4_addr;
+  unsigned long match_ipv4_mask;
+
   // "resolveDns" command
   int resolve_dns; // boolean
-
-  // "network" command to match according to IPv4 netmask
-  host_id hid;
 
   // "via" command which assigns a route if conditions are true
   ssh_tunnel* tunnel[ROUTE_RULE_MAX_SSH_TUNNELS_PER_RULE];
@@ -41,6 +42,6 @@ typedef struct route_rule {
 
 route_rule *new_route_rule();
 route_rule *insert_route_rule(route_rule *head, route_rule *rule);
-route_rule *parse_route_rule_spec(char *strIn);
+route_rule *parse_route_rule_spec(char *strIn, char *filename, int line_num, ssh_tunnel *ssh_tunnel_list);
 
 #endif // ROUTE_RULE_H

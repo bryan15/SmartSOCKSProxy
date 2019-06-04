@@ -21,6 +21,8 @@ proxy_instance *new_proxy_instance() {
   pinst->name[1]=0;
 
   pinst->service_list=NULL;
+  pinst->route_rule_list=NULL;
+
   pinst->client_connection_list=NULL;
 
   log_config_init(&(pinst->log));
