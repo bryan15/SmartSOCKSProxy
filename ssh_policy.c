@@ -1,19 +1,12 @@
 // Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: MIT-0
 
+#include<stdio.h>
 #include<stdlib.h>
 #include<unistd.h>
 #include<errno.h>
 #include<sys/wait.h>
 #include<fcntl.h>
-/*
-#include<string.h>
-#include<pthread.h>
-#include<netdb.h>
-#include<netinet/in.h>
-#include<sys/select.h>
-#include<stdio.h>
-*/
 
 #include"log.h"
 #include"ssh_tunnel.h"
@@ -166,18 +159,9 @@ int check_ssh_tunnel(ssh_tunnel *ssh) {
         errorNum("dup2()");
         unexpected_exit(83,"dup2()");
       }
-      // I'm less happy about system() vs exec() because this will leave a copy of the entire RAM in this 
-      // processes' memory. That shouldn't cause a problem, per se, but its a bit silly just to be hanging around
-      // waiting on a child process.  
-      // To add even more suckage, /bin/sh on macos doesn't honor 'exec' in the command line, so we're stuck. 
-      // This also means the PID we track is actually of the intermediate /bin/sh instance. Which means we 
-      // cannot directly control the SSH process, say if we wanted to kill it or whatnot. 
-      exit(system(ssh->command_to_run));
-
-      //rc=execlp( "/bin/bash", "-c", ssh->command_to_run, NULL);
-      //errorNum("execlp() returned %i",rc);
-      //unexpected_exit(84,"execlp()");
-      
+      rc=execlp( "/bin/bash", "bash", "-c", ssh->command_to_run, NULL);
+      errorNum("execlp() returned %i",rc);
+      unexpected_exit(84,"execlp()");
     } else {
       errorNum("fork()");
     }

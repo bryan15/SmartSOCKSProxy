@@ -134,7 +134,7 @@ route_rule *parse_route_rule_spec(char *strIn, char *filename, int line_num, ssh
         got_it=1;
       }
     }
-    if (!got_it && param != NULL && strcmp(cmd,"netmask")==0) { 
+    if (!got_it && param != NULL && strcmp(cmd,"network")==0) { 
       // TODO: move parsing of IP address + netmask to a utilty module
       char *ipaddr;
       char *mask;
@@ -145,6 +145,7 @@ route_rule *parse_route_rule_spec(char *strIn, char *filename, int line_num, ssh
       // todo: convert to long unsigned
       if (ipaddr != NULL && convert_string_to_ipv4_ulong(ipaddr, &route->match_ipv4_addr)) {
         got_it=1;
+        route->have_match_ipv4=1;
       } 
       if (got_it) {
         if (mask != NULL) {

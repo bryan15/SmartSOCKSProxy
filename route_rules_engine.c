@@ -80,8 +80,8 @@ int decide_applicable_rule(proxy_instance *proxy, service *srv, client_connectio
     }
     if (this_route_applies && route->match_ends_with[0] != 0) {
       this_route_applies=0;
-      if (name   && string_ends_with(name,   route->match_starts_with))  { this_route_applies = 1; }
-      if (ipaddr && string_ends_with(ipaddr, route->match_starts_with))  { this_route_applies = 1; }
+      if (name   && string_ends_with(name,   route->match_ends_with))  { this_route_applies = 1; }
+      if (ipaddr && string_ends_with(ipaddr, route->match_ends_with))  { this_route_applies = 1; }
       if (this_route_applies) {
         debug("%s line %i: host %s(%s) ends with %s",route->file_name, route->file_line_number, name, ipaddr, route->match_ends_with);
       } else {

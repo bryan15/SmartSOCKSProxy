@@ -7,6 +7,7 @@
 #include"unit_test_log_level.h"
 #include"unit_test_config_file.h"
 #include"unit_test_host_id.h"
+#include"unit_test_string2.h"
 
 int main(int argc, char **argv) {
 
@@ -19,6 +20,7 @@ int main(int argc, char **argv) {
   unit_test_config_file();  
   unit_test_log_level();
   unit_test_host_id();
+  unit_test_string2();
 
   printf("--------------------\n");
   printf("Tests run:   %i\n", tests_run);

@@ -30,6 +30,7 @@ OBJFILES = log.o log_level.o log_file.o\
 PROXYOBJFILES = $(OBJFILES) main.o
 
 UNITTESTOBJFILES = $(OBJFILES) unit_test.o \
+	unit_test_string2.o \
 	unit_test_log_level.o \
 	unit_test_config_file.o \
 	unit_test_host_id.o \
@@ -175,6 +176,9 @@ unit_test_config_file.o: unit_test_config_file.c
 
 unit_test_host_id.o: unit_test_host_id.c
 	$(CC) $(CFLAGS) -c unit_test_host_id.c -o unit_test_host_id.o
+
+unit_test_string2.o: unit_test_string2.c
+	$(CC) $(CFLAGS) -c unit_test_string2.c -o unit_test_string2.o
 
 smartsocksproxy: $(PROXYOBJFILES)
 	$(CC) $(LDFLAGS) $(PROXYOBJFILES) -o smartsocksproxy
