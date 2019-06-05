@@ -15,6 +15,7 @@
 #include"shuttle.h"
 #include"socks5_client.h"
 #include"thread_local.h"
+#include"thread_msg.h"
 #include"safe_close.h"
 #include"string2.h"
 #include"dns_util.h"
@@ -75,13 +76,19 @@ int connect_direct(client_connection *con, int *failure_type) {
     rc = connect(con->fd_out, (struct sockaddr*)&saddr_in, sizeof(saddr_in));
   } while (rc < 0 && (errno == EAGAIN || errno == EINTR));
   if (rc < 0) {
-     char buf[500];
-     errorNum("connect()");
-     error( "for connection %s",client_connection_str(con,buf, sizeof(buf)));
-     if (errno == ECONNREFUSED || errno == ECONNRESET) {
-       *failure_type = SOCKS5_REPLY_CONNECTION_REFUSED;
-     }
-     return 0;
+    int tmp_errno=errno;
+    do {
+      rc = close(con->fd_out);
+    } while (rc<0 && errno == EINTR);
+    con->fd_out=-1;
+    errno=tmp_errno;
+    char buf[500];
+    errorNum("connect()");
+    error( "for connection %s",client_connection_str(con,buf, sizeof(buf)));
+    if (errno == ECONNREFUSED || errno == ECONNRESET) {
+      *failure_type = SOCKS5_REPLY_CONNECTION_REFUSED;
+    }
+    return 0;
   }
 
   trace("Connect success");
@@ -90,68 +97,63 @@ int connect_direct(client_connection *con, int *failure_type) {
 }
 
 int socks_connect(proxy_instance *proxy, service *srv, client_connection *con, int *failure_type) {
+
   int ok=1;
-  int iteration=0;
-  int do_loop=1;
+  route_rule *route = con->route;
 
-  ssh_tunnel* tunnel = NULL;
-
-  // count the number of available tunnels for this route. Basically, we treat one different from >one. 
-  int tunnel_num;
-  for (tunnel_num=0; con->route->tunnel[tunnel_num] != NULL ; tunnel_num++);
-  if (tunnel_num == 0) {
+  // Count how many tunnels this rule has.
+  // Also notify main thread if we need SSH child activity. 
+  int tun_max;
+  int have_ssh_tunnel=0;
+  for (tun_max=0; route->tunnel[tun_max] != NULL && tun_max < ROUTE_RULE_MAX_SSH_TUNNELS_PER_RULE; tun_max++) {
+    ssh_tunnel *tun = route->tunnel[tun_max];
+    if (tun != ssh_tunnel_direct && tun != ssh_tunnel_null && tun->command_to_run[0]) {
+      have_ssh_tunnel=0;
+    }
+  }
+  if (tun_max == 0) {
     error("Rule %s line %i used for routing, but it has no tunnels! This should not happen.", con->route->file_name, con->route->file_line_number);
     ok=0;  // no tunnels to service this connection!
   }
-  if (ok) {
-    trace("%i tunnels available for this route. I'm going to pretend there's only one. FIXME!",tunnel_num);
-    // FIXME tunnel handling
-    tunnel = con->route->tunnel[0];
-    con->tunnel = tunnel;
-    if (tunnel == ssh_tunnel_direct) {
-      ok = connect_direct(con, failure_type);
-    } else if (tunnel ==  ssh_tunnel_null) {
-      ok = connect_null(con, failure_type);
+  if (ok && have_ssh_tunnel) {
+    thread_msg_send(" ",1);
+  } 
+
+  int attempt_to_connect=1;
+  int connect_attempt=0;
+  while (ok && attempt_to_connect) {
+    int tun_idx = connect_attempt % tun_max;
+    ssh_tunnel *tun = route->tunnel[tun_idx];
+
+    int connection_created=0; 
+    if (tun == ssh_tunnel_direct) {
+      debug("Attempting to connect directly (%s).", tun->name);
+      connection_created = connect_direct(con, failure_type);
+    } else if (tun ==  ssh_tunnel_null) {
+      debug("Connecting to null, the consumer of bytes, oblivion.");
+      connection_created = connect_null(con, failure_type);
     // TODO: add support for connecting to a SOCKS5 server. IE: not direct or SSH.
     } else {
-      ok = connect_via_ssh_socks5(con, tunnel, failure_type);
+      debug("Attempting to connect to ssh_tunnel %s on port %i",tun->name, tun->socks_port);
+      connection_created = connect_via_ssh_socks5(con, tun, failure_type);
     }
-  }
-/* 
-  while (ok && do_loop) {
-    iteration++;
-  // FIXME not sure if tunnel selection is right here.
-    // try each 
-    for (tunnel_num=0; con->route->tunnel[tunnel_num] != NULL; tunnel_num++) {
-      tunnel = con->route->tunnel[tunnel_num];
-      if (tunnel == ssh_tunnel_direct) {
-        ok = connect_direct(con, failure_type);
-      } else if (tunnel ==  ssh_tunnel_null) {
-        ok = connect_null(con, failure_type);
-      // TODO: add support for connecting to a SOCKS5 server. IE: not direct or SSH.
+  
+    if (connection_created) { 
+      attempt_to_connect=0;
+      lock_client_connection(con);
+      con->tunnel = tun;
+      unlock_client_connection(con);
+    } else { 
+      if (connect_attempt >= 100) {
+        trace("Connection attempt failed. Giving up.");
+        ok=0;
       } else {
-        ok = connect_via_ssh_socks5(con, tunnel, failure_type);
+        debug("Connection attempt failed. Will try next ssh_tunnel in a few milliseconds.");
+        usleep(100000);
       }
     }
-  }
-*/
-
-// FIXME HERE 
- /*
-  *failure_type = SOCKS5_REPLY_SERVER_FAILURE;
-  if (con->rule == _direct) {
-  } else if (con->tunnel == ssh_tunnel_null) {
-    ok = connect_null(con, failure_type);
-  } else if (con->tunnel != NULL) {
-    ok = connect_via_ssh_socks5(con, failure_type);
-  } else {
-    error("Invalid route for connection");
-    ok=0;
-  }
- */
-  if (ok && tunnel == NULL) { 
-    ok=0;
-  }
+    connect_attempt++;
+  } 
   return ok;
 }
 

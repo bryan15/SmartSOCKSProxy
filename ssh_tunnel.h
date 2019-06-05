@@ -15,6 +15,30 @@
 // in other words, this file must be refactored from "ssh_tunnel" to <something else> which is a super-set
 // of ssh_tunnel, direct, null, non-managed local socks proxy, and non-managed remote proxy. 
 
+/*
+// via
+// tunnel - but what is a tunnel?  
+
+a way through
+path
+route
+circuit-switched route
+next-hop
+transport
+
+
+- direct
+- null
+- socks4 "proxy"
+- socks5 "proxy"
+- VPN - direct, but with a command
+- HTTP "proxy"
+- 
+- run this command, or connect to this service, in order for address/port to become reachable. 
+- daisy chained 
+
+*/
+
 typedef struct ssh_tunnel {
   struct ssh_tunnel *next;
   unsigned long long id;
@@ -23,11 +47,16 @@ typedef struct ssh_tunnel {
   char   name[200];            // unique name for this tunnel
   int    socks_port;           // what local port does the SOCKS5 server come up on?
   char   command_to_run[8192]; // how do we build the tunnel?
-  log_config log;
+  log_config log; // TODO: log SSH activity to the appropriate log
+
+  // for use by main thread when marking SSH tunnels that need to be active
+  int mark; 
+  int connection_count;
 
   // run-time info
   pid_t  pid;
   time_t start_time;
+  time_t last_update_time;
   int    parent_stdin_fd;
   int    parent_stdout_fd;
   int    parent_stderr_fd;

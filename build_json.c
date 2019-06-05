@@ -168,28 +168,27 @@ void add_client_connection(char **buf, int *size, char **ptr, client_connection 
     add_comma(buf,size,ptr);
     add_int(buf,size,ptr,"socksCommand",con->socks_command);
     add_comma(buf,size,ptr);
-
-    if (host_id_has_name(&con->dst_host_original)) {
-      add_string(buf,size,ptr,"remoteName",host_id_get_name(&con->dst_host_original));
-      add_comma(buf,size,ptr);
-    }
-    if (host_id_has_addr(&con->dst_host_original)) {
-      add_string(buf,size,ptr,"remoteAddress",host_id_addr_str(&con->dst_host_original,tmp,sizeof(tmp)-1));
-      add_comma(buf,size,ptr);
-    }
-    add_int(buf,size,ptr,"remotePort",host_id_get_port(&con->dst_host_original));
-    add_comma(buf,size,ptr);
-    if (host_id_has_name(&con->dst_host)) { 
-      add_string(buf,size,ptr,"remoteNameEffective",host_id_get_name(&con->dst_host));
-      add_comma(buf,size,ptr);
-    }
-    if (host_id_has_addr(&con->dst_host)) {
-      add_string(buf,size,ptr,"remoteAddressEffective",host_id_addr_str(&con->dst_host,tmp,sizeof(tmp)-1));
-      add_comma(buf,size,ptr);
-    }
-    add_int(buf,size,ptr,"remotePortEffective",host_id_get_port(&con->dst_host));
+  }
+  if (host_id_has_name(&con->dst_host_original)) {
+    add_string(buf,size,ptr,"remoteName",host_id_get_name(&con->dst_host_original));
     add_comma(buf,size,ptr);
   }
+  if (host_id_has_addr(&con->dst_host_original)) {
+    add_string(buf,size,ptr,"remoteAddress",host_id_addr_str(&con->dst_host_original,tmp,sizeof(tmp)-1));
+    add_comma(buf,size,ptr);
+  }
+  add_int(buf,size,ptr,"remotePort",host_id_get_port(&con->dst_host_original));
+  add_comma(buf,size,ptr);
+  if (host_id_has_name(&con->dst_host)) { 
+    add_string(buf,size,ptr,"remoteNameEffective",host_id_get_name(&con->dst_host));
+    add_comma(buf,size,ptr);
+  }
+  if (host_id_has_addr(&con->dst_host)) {
+    add_string(buf,size,ptr,"remoteAddressEffective",host_id_addr_str(&con->dst_host,tmp,sizeof(tmp)-1));
+    add_comma(buf,size,ptr);
+  }
+  add_int(buf,size,ptr,"remotePortEffective",host_id_get_port(&con->dst_host));
+  add_comma(buf,size,ptr);
 
   add_int(buf,size,ptr,"status",con->status);
   add_comma(buf,size,ptr);
@@ -281,7 +280,7 @@ void add_proxy_instance(char **buf, int *size, char **ptr, proxy_instance *proxy
   add_to_buf(buf,size,ptr,"}"); // this proxy_instance
 }
 
-////////////////////////// 
+//////////////////////////  SSH_TUNNELS
 
 void add_ssh_tunnel(char **buf, int *size, char **ptr, ssh_tunnel *ssh) {
   add_to_buf(buf,size,ptr,"\"");
@@ -294,11 +293,15 @@ void add_ssh_tunnel(char **buf, int *size, char **ptr, ssh_tunnel *ssh) {
   if (ssh->pid > 0) {
     add_to_buf(buf,size,ptr,"\"pid\":"); 
     add_to_buf_uint(buf,size,ptr,ssh->pid);
-    add_to_buf(buf,size,ptr,",");  // this ssh_tunnel
+    add_to_buf(buf,size,ptr,","); 
 
     add_to_buf(buf,size,ptr,"\"timeStart\":"); 
     add_to_buf_uint(buf,size,ptr,ssh->start_time);
-    add_to_buf(buf,size,ptr,",");  // this ssh_tunnel
+    add_to_buf(buf,size,ptr,",");
+
+    add_to_buf(buf,size,ptr,"\"numConnections\":"); 
+    add_to_buf_uint(buf,size,ptr,ssh->connection_count);
+    add_to_buf(buf,size,ptr,",");
   }
 
   add_to_buf(buf,size,ptr,"\"socksPort\":"); 

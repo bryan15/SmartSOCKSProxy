@@ -13,8 +13,8 @@ class SshTunnel extends React.Component {
     let key="ssh_"+ssh.name;
 
     let status = ssh.socksPort + " " + ssh.name ;
-    if (ssh.startTime) {
-      status += " ACTIVE (pid " + ssh.pid+") ";
+    if ("pid" in ssh) {
+      status += " ("+ssh.numConnections+" connections, pid "+ssh.pid+") ";
     } else {
       status += " unused ";
     }

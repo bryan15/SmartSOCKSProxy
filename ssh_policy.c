@@ -1,16 +1,17 @@
 // Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: MIT-0
 
-#include<sys/wait.h>
-#include<unistd.h>
-/*
 #include<stdlib.h>
+#include<unistd.h>
+#include<errno.h>
+#include<sys/wait.h>
+#include<fcntl.h>
+/*
 #include<string.h>
 #include<pthread.h>
 #include<netdb.h>
 #include<netinet/in.h>
 #include<sys/select.h>
-#include<errno.h>
 #include<stdio.h>
 */
 
@@ -19,10 +20,57 @@
 #include"proxy_instance.h"
 #include"client_connection.h"
 
-#define SSH_TUNNEL_VICTORIA 1
-#define SSH_TUNNEL_CALGARY 2
+void ssh_tunnel_close_pipe(int fd) {
+  int rc;
+  if (fd < 0) {
+    return;
+  }
+  do {
+    close(fd);
+  } while (rc<0 && errno==EINTR);
+  if (rc<0) {
+    errorNum("close()");
+  }
+}
 
-int start_ssh_tunnel(ssh_tunnel *ssh) {
+void ssh_tunnel_close_pipes(ssh_tunnel *ssh) {
+  ssh_tunnel_close_pipe(ssh->parent_stdin_fd);
+  ssh_tunnel_close_pipe(ssh->parent_stdout_fd);
+  ssh_tunnel_close_pipe(ssh->parent_stderr_fd);
+  ssh_tunnel_close_pipe(ssh->child_stdin_fd);
+  ssh_tunnel_close_pipe(ssh->child_stdout_fd);
+  ssh_tunnel_close_pipe(ssh->child_stderr_fd);
+  ssh->parent_stdin_fd=-1;
+  ssh->parent_stdout_fd=-1;
+  ssh->parent_stderr_fd=-1;
+  ssh->child_stdin_fd=-1;
+  ssh->child_stdout_fd=-1;
+  ssh->child_stderr_fd=-1;
+}
+
+void ssh_tunnel_set_nonblocking(int fd) {
+  int flags;
+  int rc;
+  do {
+    flags  = fcntl(fd,F_GETFD);
+  } while (flags < 0 && errno == EINTR);
+  flags |= O_NONBLOCK;
+  if (flags < 0) {
+    errorNum("fcntl()");
+    unexpected_exit(86,"fcntl()");
+  }
+  do {
+    rc=fcntl(fd, F_SETFD, flags);
+  } while (rc < 0 && errno == EINTR); 
+  if (rc < 0) {
+    errorNum("fcntl()");
+    unexpected_exit(87,"fcntl()");
+  }
+}
+
+int create_tunnel_pipes(ssh_tunnel *ssh) {
+  ssh_tunnel_close_pipes(ssh);
+
   // 0 = read end, 1 = write end
   int pipe_stdin[2];
   int pipe_stdout[2];
@@ -39,99 +87,146 @@ int start_ssh_tunnel(ssh_tunnel *ssh) {
   ssh->child_stdout_fd = pipe_stdout[1];
   ssh->parent_stderr_fd = pipe_stderr[0];
   ssh->child_stderr_fd = pipe_stderr[1];
- 
+
+  ssh_tunnel_set_nonblocking(ssh->parent_stdout_fd);
+  ssh_tunnel_set_nonblocking(ssh->parent_stderr_fd);
+
   return 1; 
 }
 
-void check_ssh_tunnels(proxy_instance *proxy_instance_list, ssh_tunnel *ssh_tunnel_list) {
-}
 
-time_t time_last_report=0;
 int ssh_report_interval=10;
-void check_ssh_tunnel(int child_stdout, client_connection *pool, pid_t *pid, time_t *last_start, int route, int always_run_this_tunnel) {
+int check_ssh_tunnel(ssh_tunnel *ssh) {
   int is_running=0;
   int needs_to_run=0;
   time_t cur_time = time(NULL);
 
-  int tunnel_id=1;
+  int should_be_running = 0;
+  if (ssh->mark > 0) {
+    should_be_running=1;
+  }
+
 
   // check if a pre-existing process has exited. 
-  if (*pid > 0) {
+  int did_update=0;
+  if (ssh->pid > 0) {
     int exit_code;
-    pid_t tmp=waitpid(*pid,&exit_code,WNOHANG);
+    pid_t tmp;
+    do {
+      tmp=waitpid(ssh->pid,&exit_code,WNOHANG);
+    } while (tmp<0 && errno==EINTR);
     if (tmp == 0) {
-      if (cur_time - time_last_report >= ssh_report_interval) {
-        trace("SSH child for %i pid %i still running...",tunnel_id, *pid);
-        time_last_report = cur_time;
+      if (cur_time - ssh->last_update_time >= ssh_report_interval) {
+        trace("SSH child for %s (%llu) pid %i still running... mark=%i connection_count=%i", ssh->name, ssh->id, ssh->pid,ssh->mark,ssh->connection_count);
+        ssh->last_update_time = cur_time;
       }
       is_running=1;
     } else if (tmp > 0) {
-      debug("SSH child for %i pid %i exited, code = %i",tunnel_id, *pid, exit_code);
-      *pid = 0;
+      debug("SSH child for %s (%llu) pid %i exited, code = %i",ssh->name, ssh->id, ssh->pid, exit_code);
+      ssh_tunnel_close_pipes(ssh);
+      ssh->pid = -1;
     } else {
-      error("waitpid() for SSH child for %i pid %i",tunnel_id, *pid);
+      // should never happen. 
+      error("waitpid() for SSH child for %s (%llu) pid %i. This should never happen.",ssh->name, ssh->id, ssh->pid);
     }
   } 
 
-  // check if we need a tunnel
-
-  if (always_run_this_tunnel) {
+  if (should_be_running) {
     needs_to_run=1;
-  } else {
-    client_connection *con;
-    for(con=pool; con; con=con->next) {
-      lock_client_connection(con);
-      // FIXME FIXME FIXME TODO FIXME ROUTING SHIT GOES HERE
-      //if (con->route == route) needs_to_run=1;
-      unlock_client_connection(con);
-    }
   }
 
   if (!is_running && needs_to_run) {
-    if (time(NULL) - *last_start < 2) { // "poor-programmer"'s rate throttling
+    if (time(NULL) - ssh->start_time < 2) { // "poor-programmer"'s rate throttling
       needs_to_run=0;
     }
   }
 
   if (!is_running && needs_to_run) {
     // start SSH tunnel
-    *pid = fork();
-    if (*pid > 0) {
-      *last_start = time(NULL);
-      debug("SSH child started for %i pid %i",tunnel_id, *pid);
-    } else if (*pid == 0) {
+    create_tunnel_pipes(ssh);
+    ssh->pid = fork();
+    if (ssh->pid > 0) {
+      ssh->start_time = time(NULL);
+      debug("SSH child started for %s (%i) pid %i: %s", ssh->name, ssh->id, ssh->pid, ssh->command_to_run);
+    } else if (ssh->pid == 0) {
       int rc;
       // re-route STDOUT and STDERR
-      rc=dup2(child_stdout, STDOUT_FILENO);
+      rc=dup2(ssh->child_stdin_fd, STDIN_FILENO);
+      if (rc < 0) {
+        errorNum("dup2()");
+        unexpected_exit(81,"dup2()");
+      }
+      rc=dup2(ssh->child_stdout_fd, STDOUT_FILENO);
       if (rc < 0) {
         errorNum("dup2()");
         unexpected_exit(82,"dup2()");
       }
-      rc=dup2(child_stdout, STDERR_FILENO);
+      rc=dup2(ssh->child_stderr_fd, STDERR_FILENO);
       if (rc < 0) {
         errorNum("dup2()");
         unexpected_exit(83,"dup2()");
       }
-      // execlp() should never return... if it does, it's an error.
-      char *hostname="bastion1.example.com";
-      char *port="127.0.0.1:31000";  // thou shalt never EVER, for security reasons, bind to any interface other than local loopback
-      // TODO SSH tunnel management needs rework
-      /*
-      if (tunnel_id == SSH_TUNNEL_ZONE2) {
-        hostname="bastion2.example.com";
-        port="127.0.0.1:31001"; // thou shalt never EVER, for security reasons, bind to any interface other than local loopback
-      } else if (tunnel_id == SSH_TUNNEL_ZONE3) {
-        hostname="bastion3.example.com";
-        port="127.0.0.1:31002"; // thou shalt never EVER, for security reasons, bind to any interface other than local loopback
-      }
-      */
-      //rc=execlp( "/usr/bin/ssh", "ssh", "-D", port, "-F", "/dev/null", "-N", "-o", "ServerAliveInterval=5", hostname, NULL);
-      rc=execlp( "/usr/local/bin/ssh", "ssh", "-D", port, "-N", "-o", "ServerAliveInterval=5", hostname, NULL);
-      errorNum("execlp() returned %i",rc);
-      unexpected_exit(84,"execlp()");
+      // I'm less happy about system() vs exec() because this will leave a copy of the entire RAM in this 
+      // processes' memory. That shouldn't cause a problem, per se, but its a bit silly just to be hanging around
+      // waiting on a child process.  
+      // To add even more suckage, /bin/sh on macos doesn't honor 'exec' in the command line, so we're stuck. 
+      // This also means the PID we track is actually of the intermediate /bin/sh instance. Which means we 
+      // cannot directly control the SSH process, say if we wanted to kill it or whatnot. 
+      exit(system(ssh->command_to_run));
+
+      //rc=execlp( "/bin/bash", "-c", ssh->command_to_run, NULL);
+      //errorNum("execlp() returned %i",rc);
+      //unexpected_exit(84,"execlp()");
+      
     } else {
       errorNum("fork()");
     }
+  } 
+  return did_update;
+}
+
+
+void check_ssh_tunnels(proxy_instance *proxy_instance_list, ssh_tunnel *ssh_tunnel_list) {
+  proxy_instance *proxy;
+  client_connection *con;
+  ssh_tunnel *ssh; 
+  
+  // We mark-and-sweep to identify and activate required SSH tunnels
+  for (ssh=ssh_tunnel_list; ssh; ssh = ssh->next) {
+    ssh->mark=0;
+    ssh->connection_count=0;
+  }
+  for (proxy=proxy_instance_list; proxy; proxy = proxy->next) {
+    for (con=proxy->client_connection_list; con; con=con->next) {
+      route_rule *route_in_use;
+      ssh_tunnel *tunnel_in_use;
+      lock_client_connection(con);
+      route_in_use  = con->route;
+      tunnel_in_use = con->tunnel;
+      unlock_client_connection(con);
+
+      if (route_in_use != NULL) {
+        if (tunnel_in_use) {
+          tunnel_in_use->mark++;
+          tunnel_in_use->connection_count++;
+        } else { 
+          // This connection has a route decided, but has failed to successfully connect to a required tunnel. 
+          // Let's look at all of this route's tunnels and mark them as required. 
+          ssh_tunnel **list = route_in_use->tunnel;
+          for (int i=0; list[i]; i++) {
+            list[i]->mark++;
+          }
+        }
+      }
+    }
+  } 
+
+  // Now go update tunnel status and check any that should be running. 
+  for (ssh=ssh_tunnel_list; ssh; ssh = ssh->next) {
+    if (ssh == ssh_tunnel_direct || ssh == ssh_tunnel_null) {
+      continue;
+    }
+    check_ssh_tunnel(ssh);
   }
 }
 

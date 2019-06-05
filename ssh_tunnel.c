@@ -31,6 +31,7 @@ ssh_tunnel *new_ssh_tunnel() {
 
   ssh->pid=-1;
   ssh->start_time=0;
+  ssh->last_update_time=0;
   // We don't want child processes writing to STDOUT and STDERR. 
   // Instead, we'll rediret their output to a pipe. Of course, 
   // someone needs to read the pipe and write the contents
@@ -70,25 +71,6 @@ ssh_tunnel *ssh_tunnel_init(ssh_tunnel *head) {
   head=insert_ssh_tunnel(head,ssh_tunnel_null);
 
   return head;
-}
-
-int close_fd(int fd) {
-  if (fd > -1) { 
-    close(fd);
-  }
-  return -1;
-}
-
-// assumes ssh->pid has exited 
-void reset_ssh_tunnel(ssh_tunnel *ssh) {
-  ssh->parent_stdin_fd = close_fd(ssh->parent_stdin_fd);
-  ssh->parent_stdout_fd = close_fd(ssh->parent_stdout_fd);
-  ssh->parent_stderr_fd = close_fd(ssh->parent_stderr_fd);
-  ssh->child_stdin_fd = close_fd(ssh->child_stdin_fd);
-  ssh->child_stdout_fd = close_fd(ssh->child_stdout_fd);
-  ssh->child_stderr_fd = close_fd(ssh->child_stderr_fd);
-  ssh->pid=-1;
-  ssh->start_time = 0;
 }
 
 char *ssh_tunnel_str(ssh_tunnel *ssh, char *buf, int buflen) {

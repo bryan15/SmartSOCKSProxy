@@ -127,8 +127,8 @@ route_rule *parse_route_rule_spec(char *strIn, char *filename, int line_num, ssh
     int got_it = 0; 
     if (!got_it) got_it = route_rule_grab_param("is",cmd,param,route->match_is,sizeof(route->match_is));
     if (!got_it) got_it = route_rule_grab_param("startsWith",cmd,param,route->match_starts_with,sizeof(route->match_starts_with));
-    if (!got_it) got_it = route_rule_grab_param("endsWith",cmd,param,route->match_is,sizeof(route->match_ends_with));
-    if (!got_it) got_it = route_rule_grab_param("contains",cmd,param,route->match_is,sizeof(route->match_contains));
+    if (!got_it) got_it = route_rule_grab_param("endsWith",cmd,param,route->match_ends_with,sizeof(route->match_ends_with));
+    if (!got_it) got_it = route_rule_grab_param("contains",cmd,param,route->match_contains,sizeof(route->match_contains));
     if (!got_it && param != NULL && strcmp(cmd,"port")==0) {
       if (sscanf(param,"%i",&route->match_port) ==1) {
         got_it=1;

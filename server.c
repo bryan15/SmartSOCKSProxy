@@ -177,7 +177,7 @@ void read_from_child(char *label, ssh_tunnel *ssh, int fd) {
     if (rc > 0 && tmpbuf[rc-1] == '\n') {
       tmpbuf[rc-1]=0;
     }
-    info("CHILD %S: %s",label,tmpbuf);
+    info("%s %s: %s",ssh->name, label,tmpbuf);
   }
 }
 
@@ -308,7 +308,7 @@ int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tun
         read_from_child("STDOUT", ssh, ssh->parent_stdout_fd);
       }
       if (ssh->parent_stderr_fd >= 0 && FD_ISSET(ssh->parent_stderr_fd,&readfds)) {
-        read_from_child("STDERR", ssh, ssh->parent_stdout_fd);
+        read_from_child("STDERR", ssh, ssh->parent_stderr_fd);
       }
     }
 
@@ -398,7 +398,6 @@ int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tun
       log_file_rotate(log);
     }
   } 
-
 
   trace("Main loop exited.");
   return 0;

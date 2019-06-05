@@ -129,81 +129,60 @@ int socks5_client_get_command_response(client_connection *con, int *failure_type
 }
 
 // returns 1 on success, 0 on error
-int connect_to_ssh_socks5_proxy(client_connection *con, ssh_tunnel *tunnel) {
+int connect_to_ssh_socks5_proxy(client_connection *con, ssh_tunnel *tun) {
   struct sockaddr_in saddr_in;
-  int continue_connection_attempt=1;
-  int connect_attempt=0;
 
-  while (continue_connection_attempt) {
-    ++connect_attempt;
+  con->fd_out = socket(PF_INET, SOCK_STREAM, 0);
+  if (con->fd_out < 0) {
+    errorNum("socket()");
+    return 0;
+  }
 
-    con->fd_out = socket(PF_INET, SOCK_STREAM, 0);
-    if (con->fd_out < 0) {
-      errorNum("socket()");
-      return 0;
-    }
+  // FIXME get local address from ssh_tunnel structure
+  unsigned long proxy_ip = 0x7F000001; // 127.0.0.1
+  int proxy_port = tun->socks_port;
 
-    // FIXME get local address from ssh_tunnel structure
-    bzero(&saddr_in, sizeof(saddr_in));
-    saddr_in.sin_addr.s_addr = htonl(0x7F000001); // 127.0.0.1
-    saddr_in.sin_family = AF_INET;
+  trace("Attempting to connect to %08lx : %i", proxy_ip, proxy_port);
 
-    /*
-    route_rule* rule = decide_applicable_rule(proxy, srv, con);
-    if (rule == NULL) {
-    } 
-    */
-    // FIXME FIXME FIXME FIXME ROUTING SHIT GOES HERE
-    /*
-    if (con->route == SOME_ROUTE_PROXY_LAB) {
-      saddr_in.sin_port = htons(31000); // viclabbas01
-    } else if (connect_attempt & 0x10) {
-      saddr_in.sin_port = htons(31002); // calbas01
-    } else {
-      saddr_in.sin_port = htons(31001); // vicbas01
-    }
-    */
+  // FIXME TODO: support ipv6
+  bzero(&saddr_in, sizeof(saddr_in));
+  saddr_in.sin_addr.s_addr = htonl(proxy_ip);
+  saddr_in.sin_family = AF_INET;
+  saddr_in.sin_port = htons(proxy_port); 
 
-    int rc;
+  int rc;
+  do {
+    rc = connect(con->fd_out, (struct sockaddr*)&saddr_in, sizeof(saddr_in));
+  } while (rc < 0 && (errno == EAGAIN || errno == EINTR));
+  if (rc < 0) {
+    int tmp_errno=errno;
     do {
-      rc = connect(con->fd_out, (struct sockaddr*)&saddr_in, sizeof(saddr_in));
-    } while (rc < 0 && (errno == EAGAIN || errno == EINTR));
-    if (rc < 0) {
-      int tmp_errno=errno;
-      close(con->fd_out);
-      errno=tmp_errno;
-      con->fd_out=-1;
-      if (errno == ECONNREFUSED) {
-        set_client_connection_status(con, CCSTATUS_OKAY,"Waiting","SSH SOCKS5 proxy connection refused. Will try again in a few milliseconds.");
-        trace("connect(ssh_proxy) connection refused. Will try again in a few milliseconds.");
-        usleep(100000);
-      } else {
-        errorNum("connect(ssh_proxy)");
-        set_client_connection_status(con, CCSTATUS_ERROR,NULL,strerror(tmp_errno));
-        return 0;
-      }
+      rc = close(con->fd_out);
+    } while (rc<0 && errno == EINTR);
+    con->fd_out=-1;
+    errno=tmp_errno;
+    if (errno == ECONNREFUSED) {
+      set_client_connection_status(con, CCSTATUS_OKAY,"Waiting","SSH SOCKS5 proxy connection refused.");
+      trace("connect(%08lx:%i) connection refused.",proxy_ip, proxy_port);
     } else {
-      // successful connection
-      continue_connection_attempt=0;
+      errorNum("connect(%08lx:%i)",proxy_ip,proxy_port);
+      set_client_connection_status(con, CCSTATUS_ERROR,NULL,strerror(tmp_errno));
     }
-    if (continue_connection_attempt && connect_attempt > 100) {
-      set_client_connection_status(con, CCSTATUS_ERROR,"Timeout","Gave up waiting for SSH SOCKS5 proxy to become available. Does your SSH work?");
-      return 0;
-    }
+    return 0;
   }
   return 1;
 }
 
 // returns 1 if connection successful, 0 otherwise.
 // specific failure type written to failure_type
-int connect_via_ssh_socks5(client_connection *con, ssh_tunnel *tunnel, int *failure_type) {
+int connect_via_ssh_socks5(client_connection *con, ssh_tunnel *tun, int *failure_type) {
   int ok=1;
 
   *failure_type=SOCKS5_REPLY_SERVER_FAILURE;
 
   if (ok) {
     set_client_connection_status(con, CCSTATUS_OKAY,"Connecting","Connecting to SSH SOCKS5 server");
-    ok = connect_to_ssh_socks5_proxy(con, tunnel);
+    ok = connect_to_ssh_socks5_proxy(con, tun);
   }
   if (ok) {
     set_client_connection_status(con, CCSTATUS_OKAY,"Negotiating","Negotiating connection with SSH SOCKS5 server");
