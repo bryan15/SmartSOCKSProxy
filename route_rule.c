@@ -30,6 +30,13 @@ route_rule *new_route_rule() {
     rule->match_ipv4_addr=0;
     rule->match_ipv4_mask=0;
 
+    rule->have_map_ipv4=0;
+    rule->map_ipv4_addr=0;
+    rule->map_ipv4_mask=0;
+    rule->have_to_ipv4=0;
+    rule->to_ipv4_addr=0;
+    rule->to_ipv4_mask=0;
+
     // host_id_init(&(rule->hid));
     
     rule->tunnel[0]=NULL; 
@@ -72,6 +79,39 @@ int convert_string_to_ipv4_ulong(char *ipaddr_string, unsigned long *ipaddr) {
   return 0;
 }
 
+    //if (!got_it) got_it = route_rule_grab_netv4("to",cmd,param,&route->have_to_ipv4, &route->to_ipv4_addr, &route->to_ipv4_mask);
+int route_rule_grab_netv4(char *expected_cmd, char *cmd, char *param, int *have_field, unsigned long *addr_field, unsigned long *mask_field) {
+  int got_it = 0;
+  if (!got_it && param != NULL && strcmp(cmd,expected_cmd)==0) { 
+    char *ipaddr;
+    char *mask;
+    ipaddr = strsep(&param,"/");
+    mask = strsep(&param,"/");
+    if (ipaddr != NULL && convert_string_to_ipv4_ulong(ipaddr, addr_field)) {
+      got_it=1;
+      *have_field=1;
+    } 
+    if (got_it) {
+      if (mask != NULL) {
+        // attempt to parse in the form /255.255.0.0
+        if (convert_string_to_ipv4_ulong(mask, mask_field) == 0) {
+          // attempt to parse in the form /24
+          int prefix; 
+          if (sscanf(mask,"%i",&prefix) == 1) {
+            *mask_field = (0xffffffff << (32 - prefix)) & 0xffffffff;
+          } else {
+            got_it=0; // there's something wrong with this netmask representation
+          }
+        }
+      } else {
+        *mask_field=0x0ffffffff;
+      }
+    }
+    trace2("route_rule %s raw:        %s %s",expected_cmd,ipaddr,mask);
+    trace2("route_rule %s parsed:  %i 0x%08lx/0x%08lx",expected_cmd,*have_field, *addr_field, *mask_field);
+  }
+  return got_it;
+}
 
 route_rule *parse_route_rule_spec(char *strIn, char *filename, int line_num, ssh_tunnel *ssh_tunnel_list) {
   char *strPtr;
@@ -134,38 +174,9 @@ route_rule *parse_route_rule_spec(char *strIn, char *filename, int line_num, ssh
         got_it=1;
       }
     }
-    if (!got_it && param != NULL && strcmp(cmd,"network")==0) { 
-      // TODO: move parsing of IP address + netmask to a utilty module
-      char *ipaddr;
-      char *mask;
-      ipaddr = strsep(&param,"/");
-      mask = strsep(&param,"/");
-      // todo: check non-null
-      // todo: default mask to /32
-      // todo: convert to long unsigned
-      if (ipaddr != NULL && convert_string_to_ipv4_ulong(ipaddr, &route->match_ipv4_addr)) {
-        got_it=1;
-        route->have_match_ipv4=1;
-      } 
-      if (got_it) {
-        if (mask != NULL) {
-          // attempt to parse in the form /255.255.0.0
-          if (convert_string_to_ipv4_ulong(mask, &route->match_ipv4_mask) == 0) {
-            // attempt to parse in the form /24
-            int prefix; 
-            if (sscanf(mask,"%i",&prefix) == 1) {
-              route->match_ipv4_mask = (0xffffffff << (32 - prefix)) & 0xffffffff;
-            } else {
-              got_it=0; // there's something wrong with this netmask representation
-            }
-          }
-        } else {
-          route->match_ipv4_mask=0x0ffffffff;
-        }
-      }
-      trace2("route_rule netmask raw:     %s %s",ipaddr,mask);
-      trace2("route_rule netmask parsed:  %i 0x%08lx/0x%08lx",route->have_match_ipv4, route->match_ipv4_addr, route->match_ipv4_mask);
-    }
+    if (!got_it) got_it = route_rule_grab_netv4("network",cmd,param,&route->have_match_ipv4, &route->match_ipv4_addr, &route->match_ipv4_mask);
+    if (!got_it) got_it = route_rule_grab_netv4("map",cmd,param,&route->have_map_ipv4, &route->map_ipv4_addr, &route->map_ipv4_mask);
+    if (!got_it) got_it = route_rule_grab_netv4("to",cmd,param,&route->have_to_ipv4, &route->to_ipv4_addr, &route->to_ipv4_mask);
     if (!got_it) {
       okay=0;
     }

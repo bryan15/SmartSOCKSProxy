@@ -13,6 +13,9 @@ typedef struct route_rule {
   struct route_rule *next;
   unsigned long long id;
 
+  ///////////////////
+  // CONDITIONS
+
   // match against DNS or string-verison of hid
   char match_is[MAX_DNS];
   char match_starts_with[MAX_DNS];
@@ -24,11 +27,28 @@ typedef struct route_rule {
   unsigned long match_ipv4_addr;
   unsigned long match_ipv4_mask;
 
+  ///////////////////
+  // PERMUTATIONS
+
   // "resolveDns" command
   int resolve_dns; // boolean
 
+  int have_map_ipv4; // boolean, because both values below could legitimately be 0
+  unsigned long map_ipv4_addr;
+  unsigned long map_ipv4_mask;
+
+  int have_to_ipv4; // boolean, because both values below could legitimately be 0
+  unsigned long to_ipv4_addr;
+  unsigned long to_ipv4_mask;
+
+  ///////////////////
+  // END-STATE
+
   // "via" command which assigns a route if conditions are true
   ssh_tunnel* tunnel[ROUTE_RULE_MAX_SSH_TUNNELS_PER_RULE];
+
+  ///////////////////
+  // Metadata
 
   // unrelated to rule or its operation, but for debugging and
   // producing useful log messages, let's

@@ -12,6 +12,7 @@
 #include"ssh_tunnel.h"
 #include"string2.h"
 #include"dns_util.h"
+#include"socks5.h"
 
 route_rule *default_direct = NULL;
 
@@ -57,7 +58,10 @@ int decide_applicable_rule(proxy_instance *proxy, service *srv, client_connectio
   for (route_rule *route = proxy->route_rule_list; route && !applicable_route; route=route->next) {
     int this_route_applies=1;
     int final_route=0;
-     
+    
+    ////////////////
+    // CONITIONS 
+
     if (this_route_applies && route->match_is[0] != 0) {
       this_route_applies=0;
       if (name   &&  strcmp(name,   route->match_is) == 0)   { this_route_applies=1; }
@@ -116,21 +120,82 @@ int decide_applicable_rule(proxy_instance *proxy, service *srv, client_connectio
         if (dst_net == rule_net) { this_route_applies = 1; }
       } 
       if (this_route_applies) {
-        debug("%s line %i: host %s(%s) matches network 0x08x / 0x08x",route->file_name, route->file_line_number, name, ipaddr, route->match_ipv4_addr);
+        debug("%s line %i: host %s(%s) matches network 0x%08x / 0x%08x",route->file_name, route->file_line_number, name, ipaddr, route->match_ipv4_addr, route->match_ipv4_mask);
       } else {
-        debug("%s line %i: host %s(%s) DOES NOT match network 0x08x / 0x08x",route->file_name, route->file_line_number, name, ipaddr, route->match_ipv4_addr);
+        debug("%s line %i: host %s(%s) DOES NOT match network 0x%08x / 0x%08x",route->file_name, route->file_line_number, name, ipaddr, route->match_ipv4_addr, route->match_ipv4_mask);
+      }
+    }
+    // 'map' is effectively identical to 'network'. But I'm not sure it always will be, so I made it a seprate command
+    if (this_route_applies && route->have_map_ipv4) {
+      this_route_applies=0;
+      if (ipaddr && family == AF_INET) {
+        unsigned long dst_net  = ipv4_addr & route->map_ipv4_mask;
+        unsigned long rule_net = route->map_ipv4_addr & route->map_ipv4_mask;
+        if (dst_net == rule_net) { this_route_applies = 1; }
+      } 
+      if (this_route_applies) {
+        debug("%s line %i: host %s(%s) matches map 0x%08x / 0x%08x",route->file_name, route->file_line_number, name, ipaddr, route->map_ipv4_addr, route->map_ipv4_mask);
+      } else {
+        debug("%s line %i: host %s(%s) DOES NOT match map 0x%08x / 0x%08x",route->file_name, route->file_line_number, name, ipaddr, route->map_ipv4_addr, route->map_ipv4_mask);
       }
     }
    
-    if (route->resolve_dns) {
+    ////////////////
+    // PERMUTATIONS
+
+    if (this_route_applies && route->have_to_ipv4) { 
+      if (ipaddr && family == AF_INET) {
+        unsigned long orig_ipv4_addr = ipv4_addr; 
+        unsigned long mask     = route->to_ipv4_mask;
+        unsigned long mask_neg = 0x0ffffffff ^ mask;
+        unsigned long new_ipv4_addr = (ipv4_addr & mask_neg) | (route->to_ipv4_addr & mask);
+    
+        struct sockaddr_in sin;
+        sin.sin_len = sizeof(struct sockaddr_in);
+        sin.sin_family = AF_INET;
+        sin.sin_port=htons(host_id_get_port(dst));
+        sin.sin_addr.s_addr=htonl(new_ipv4_addr);
+
+        lock_client_connection(con);
+        host_id_set_addr_in(dst,&sin);
+        host_id_set_name(dst,""); 
+        con->socks_address_type=SOCKS5_ADDRTYPE_IPV4;
+        unlock_client_connection(con);
+
+        name = rre_get_host_id_name(dst, name_mem, sizeof(name_mem));
+        ipaddr = rre_get_host_id_addr(dst,ipaddr_mem, sizeof(ipaddr_mem), &family, &ipv4_addr);
+        debug("%s line %i: ip4 address transformed from %08x to %08x",route->file_name, route->file_line_number, orig_ipv4_addr, new_ipv4_addr);
+      }
+    }
+
+    if (this_route_applies && route->resolve_dns) {
       debug("%s line %i: Executing DNS lookup for %s",route->file_name, route->file_line_number, name);
-      resolve_dns_for_host_id(dst);
+      host_id tmp_id = *dst;
+      resolve_dns_for_host_id(&tmp_id);
+
+      lock_client_connection(con);
+      *dst=tmp_id;
+      unlock_client_connection(con);
+
       name = rre_get_host_id_name(dst, name_mem, sizeof(name_mem));
       ipaddr = rre_get_host_id_addr(dst,ipaddr_mem, sizeof(ipaddr_mem), &family, &ipv4_addr);
     }
 
+    ////////////////
+    // END-STATE
+
     if (this_route_applies && route->tunnel[0] != NULL) {
-      debug("%s line %i: this route rule applies and has a tunnel specified. I will stop here - this is the matching rule.",route->file_name, route->file_line_number, name);
+      char tunnel_descr[200]; 
+      // so ugly
+      if (route->tunnel[1] != NULL && route->tunnel[2] != NULL) {
+        snprintf(tunnel_descr,sizeof(tunnel_descr)-1,"%s, %s, ...",route->tunnel[0]->name, route->tunnel[1]->name);
+      } else if (route->tunnel[1] != NULL) {
+        snprintf(tunnel_descr,sizeof(tunnel_descr)-1,"%s, %s",route->tunnel[0]->name, route->tunnel[1]->name);
+      } else {
+        strncpy(tunnel_descr,route->tunnel[0]->name,sizeof(tunnel_descr)-1);
+      } 
+      tunnel_descr[sizeof(tunnel_descr)-1]=0;
+      debug("%s line %i: route %s(%s) via %s",route->file_name, route->file_line_number, name, ipaddr, tunnel_descr);
       final_route = 1;
     }
  

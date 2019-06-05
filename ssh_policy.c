@@ -159,7 +159,9 @@ int check_ssh_tunnel(ssh_tunnel *ssh) {
         errorNum("dup2()");
         unexpected_exit(83,"dup2()");
       }
-      rc=execlp( "/bin/bash", "bash", "-c", ssh->command_to_run, NULL);
+      char cmd_buf[8192];
+      snprintf(cmd_buf,sizeof(cmd_buf),"exec %s",ssh->command_to_run);
+      rc=execlp( "/bin/bash", "bash", "-c", cmd_buf, NULL);
       errorNum("execlp() returned %i",rc);
       unexpected_exit(84,"execlp()");
     } else {

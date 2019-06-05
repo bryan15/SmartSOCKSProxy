@@ -125,6 +125,10 @@ int socks_connect(proxy_instance *proxy, service *srv, client_connection *con, i
     int tun_idx = connect_attempt % tun_max;
     ssh_tunnel *tun = route->tunnel[tun_idx];
 
+    lock_client_connection(con);
+    con->tunnel = tun;
+    unlock_client_connection(con);
+
     int connection_created=0; 
     if (tun == ssh_tunnel_direct) {
       debug("Attempting to connect directly (%s).", tun->name);
@@ -140,10 +144,10 @@ int socks_connect(proxy_instance *proxy, service *srv, client_connection *con, i
   
     if (connection_created) { 
       attempt_to_connect=0;
-      lock_client_connection(con);
-      con->tunnel = tun;
-      unlock_client_connection(con);
     } else { 
+      lock_client_connection(con);
+      con->tunnel = NULL;
+      unlock_client_connection(con);
       if (connect_attempt >= 100) {
         trace("Connection attempt failed. Giving up.");
         ok=0;
