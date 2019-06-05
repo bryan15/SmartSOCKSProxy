@@ -7,6 +7,7 @@
 #include<unistd.h>
 #include<errno.h>
 #include<string.h>
+#include<dirent.h>
 
 #include"log.h"
 #include"proxy_instance.h"
@@ -21,6 +22,10 @@
 
 #define MAX_LINE_LENGTH 10240
 
+// avoid compiler errors due to undeclared functions
+int route_rule_file_parse(route_rule **route_rule_list, ssh_tunnel *ssh_tunnel_list, char* filename, char **filename_stack, int filename_stack_size, int filename_stack_index);
+#define ROUTE_RULE_FILENAME_STACK_SIZE 200
+#define ROUTE_RULE_DIR_MAX_FILES 200
 
 // IMPROVEMENT: roll variable substitution into the initial pass so that the $ can be escaped. 
 // IMPROVEMENT: This whole file could use a rewrite. Or replace with something off-the-shelf. 
@@ -437,9 +442,82 @@ int config_file_parse_proxy_instance_entry(char *filename, int line_num, char *l
     proxy->route_rule_list = insert_route_rule(proxy->route_rule_list, route);
     return 1;
   }
-  
-  // TODO: routing rules file
-  // TODO: routing rules dir
+
+  // add a routing rule file
+  help = "routeFile <filename> ";
+  if (config_set_string(filename, line_num, line, "proxy", proxy->name, "routeFile ",help, stringBuf, sizeof(stringBuf))) {
+    char* filename_stack[ROUTE_RULE_FILENAME_STACK_SIZE+1];
+    int rc = route_rule_file_parse(&proxy->route_rule_list, ssh_tunnel_list, stringBuf, filename_stack, ROUTE_RULE_FILENAME_STACK_SIZE, 0);
+    if (rc == 0) {
+      error("USAGE: %s",help);
+      return 0;
+    }
+    return 1;
+  }
+
+  // add a routing rule directory
+  help = "routeDir <dirname> ";
+  if (config_set_string(filename, line_num, line, "proxy", proxy->name, "routeDir ",help, stringBuf, sizeof(stringBuf))) {
+    char* filename_stack[ROUTE_RULE_FILENAME_STACK_SIZE+1];
+    char file_list_raw[ROUTE_RULE_DIR_MAX_FILES][4096];
+    char file_list_sorted[ROUTE_RULE_DIR_MAX_FILES][4096];
+
+    int index=0;
+    DIR *my_dir; 
+    struct dirent *my_dirent;
+    my_dir = opendir(stringBuf);
+    if (my_dir) {
+      while((my_dirent = readdir(my_dir)) != NULL) {
+        if (my_dirent->d_type == DT_REG || my_dirent->d_type == DT_LNK) {
+          strncpy(file_list_raw[index],my_dirent->d_name,4096-1);
+          file_list_raw[index][4095]=0; // just to be sure. 
+          index++;
+        } 
+      }
+      closedir(my_dir);
+      trace("Found %i route rule files in %s",index,stringBuf); 
+      // sort. Efficiency be damned. I mean, this is done once at startup. And it's 11pm and I'm tired. 
+      int ii, jj; // Richard scolded me to never use single-character variable names; they are impossible to search for. 
+      int lowest;
+      for (ii=0;ii<index;ii++) {
+        trace("raw: %s",file_list_raw[ii]);
+      } 
+      for (ii=0; ii<index; ii++) {
+        // find lowest entry in _raw
+        lowest=-1; 
+        for (jj=0;jj<index;jj++) {
+          if (file_list_raw[jj][0]) {
+            if (lowest == -1) { 
+              lowest = jj;
+            } else { 
+              if (strcmp(file_list_raw[lowest],file_list_raw[jj]) > 0) {
+                lowest = jj;
+              }
+            }
+          }
+        }
+        strcpy(file_list_sorted[ii],file_list_raw[lowest]);
+        file_list_raw[lowest][0]=0;
+      }  
+      for (ii=0;ii<index;ii++) {
+        trace("sorted: %s",file_list_sorted[ii]);
+      } 
+      for (ii=0;ii<index;ii++) {
+        char full_filename[4096];
+        snprintf(full_filename,sizeof(full_filename),"%s/%s",stringBuf,file_list_sorted[ii]);
+        int rc = route_rule_file_parse(&proxy->route_rule_list, ssh_tunnel_list, full_filename, filename_stack, ROUTE_RULE_FILENAME_STACK_SIZE, 0);
+        if (rc == 0) {
+          error("USAGE: %s",help);
+          return 0;
+        }
+      } 
+    } else {
+      error("USAGE: %s",help);
+      return 0;
+    } 
+
+    return 1;
+  }
 
   return 0;
 }
@@ -463,6 +541,83 @@ int config_file_parse_ssh_tunnel_entry(char *filename, int line_num, char *line,
     return 1;
   }
   return 0;
+}
+
+////////////////////////////////// ////////////////////////////////// ////////////////////////////////// //////////////////////////////////
+////////////////////////////////// ////////////////////////////////// ////////////////////////////////// //////////////////////////////////
+
+int route_rule_file_parse(route_rule **route_rule_list, ssh_tunnel *ssh_tunnel_list, char* filename, char **filename_stack, int filename_stack_size, int filename_stack_index) {
+  debug("Reading route_rule file '%s'",filename);
+  filename_stack[filename_stack_index]=filename;
+  filename_stack_index++;
+
+  int fd = open(filename,O_RDONLY);
+  if ( fd < 0 ) {
+    error("Cannot open route_rule file '%s'",filename);
+    return 0;
+  }
+
+  int line_num = 0;
+  int cr = 0;
+  int lf = 0;
+  char buf[MAX_LINE_LENGTH];
+  char buf2[MAX_LINE_LENGTH];
+  char buf3[MAX_LINE_LENGTH];
+  int rc;
+
+  int okay=1;
+  while(okay) {
+    line_num++;
+
+    okay = read_line(fd, buf, sizeof(buf), &cr, &lf, filename, line_num);
+    if (okay == 2) { // eof
+      break;
+    }
+    if (!okay) {
+      return 0;
+    }
+
+    // parse this line
+    trace2("route_rule_file (%s line %i): %s", filename, line_num, buf);
+    if (!remove_extra_spaces_and_comments_from_config_line(buf, buf2, sizeof(buf2))) {
+      return 0;
+    }
+    if (!replace_environment_variables_in_string(filename, line_num, buf2, buf3, sizeof(buf3))) {
+      return 0;
+    }
+
+    char *line = buf3;
+
+    if (strlen(line)==0) {
+      continue;
+    }
+
+    char include_filename[8192];
+    if (config_set_string(filename, line_num, line, "main", "", "routeFile ","routeFile <file_name>", include_filename, sizeof(include_filename))) {
+      // we've been asked to include a file. First, let's check if we've already included the file - no infinite loops for us! I hope. 
+      int found_file_in_stack = 0;
+      for (int i=0; !found_file_in_stack && i < filename_stack_index; i++) {
+        if (strcmp(filename_stack[i],include_filename)==0) {
+          found_file_in_stack=1;
+        }
+      }
+      if (found_file_in_stack) {
+        warn("Attempt to include file \"%s\" blocked; we've already included it, and recursive config files is disallowed.",include_filename);
+      } else if (filename_stack_index >= filename_stack_size) {
+        warn("Attempt to include file \"%s\" blocked; include file recursion cannot go deeper than %i", include_filename, filename_stack_size);
+      } else {
+         okay = route_rule_file_parse(route_rule_list, ssh_tunnel_list, include_filename, filename_stack, filename_stack_size, filename_stack_index);
+      }
+      continue;
+    }
+
+    route_rule *route = parse_route_rule_spec(line, filename, line_num, ssh_tunnel_list);
+    if (route == NULL) {
+      return 0;
+    }
+    *route_rule_list = insert_route_rule(*route_rule_list, route);
+  }
+  return 1;
 }
 
 ////////////////////////////////// ////////////////////////////////// ////////////////////////////////// //////////////////////////////////

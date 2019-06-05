@@ -4,6 +4,8 @@
 #ifndef CONFIG_FILE_H
 #define CONFIG_FILE_H
 
+#include"log.h"
+#include"log_file.h"
 #include"proxy_instance.h"
 #include"ssh_tunnel.h"
 
