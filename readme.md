@@ -113,13 +113,13 @@ SmartSOCKSProxy eliminates most requirements for /etc/hosts overrides.
 
 However, there is one case where SmartSOCKSProxy needs help: if you try to reach a DNS name which does not exist in the local-configured DNS, but the application 
 resolves the DNS to an IP before opening the connection, it will fail on DNS resolution. IE: This all happens before SmartSOCKSProxy is 
-contacted, so there's nothing SimpleSOCKSProxy can do about it.
+contacted, so there's nothing SmartSOCKSProxy can do about it.
 
 To avoid this, we augment the local DNS with the missing DNS entries, or add them to /etec/hosts.
 
 ## Scenarios / Use Cases
 
-SimpleSOCKSProxy is best understood through its use cases. 
+SmartSOCKSProxy is best understood through its use cases. 
 
 ### Connect to IP Address, Direct
 
@@ -130,11 +130,11 @@ If the IP address is directly addressible from the local network segment, connec
 If the IP address resides within a remote segmented network: 
 
   - Open SSH connection to the remote's bastion, configured as a SOCKS5 server
-  - SimpleSOCKSProxy, acting as a SOCK5 client, routes the connection through SSH to the destination
+  - SmartSOCKSProxy, acting as a SOCK5 client, routes the connection through SSH to the destination
 
 ## Design Goals
 
-### SimpleSOCKSProxy Design Goals: 
+### SmartSOCKSProxy Design Goals: 
 
   - fast
   - stable
@@ -144,7 +144,7 @@ If the IP address resides within a remote segmented network:
   - routing policy consolidated in a single place
     - easy to inspect and change
 
-### SimpleSOCKSProxy Non-Goals: 
+### SmartSOCKSProxy Non-Goals: 
  
   - code doesn't need to be perfect; the project shouldn't grow very large
   - threading is used so the SOCKS5 protocol can be programmed using blocking I/O. This makes the SOCKS5 implementation 
