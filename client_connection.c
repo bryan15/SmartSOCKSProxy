@@ -9,6 +9,7 @@
 #include<strings.h>
 #include<time.h>
 #include<pthread.h>
+#include<sys/errno.h>
 
 #include"log.h"
 #include"client_connection.h"
@@ -101,11 +102,20 @@ char *client_connection_str(client_connection *con, char *buf, int buflen) {
 }
 
 void lock_client_connection(client_connection *con) {
-  pthread_mutex_lock(&(con->mutex));
+  int rc;
+  do {
+    rc = pthread_mutex_lock(&(con->mutex));
+  } while (rc == EINTR); // not sure this works as intended...
+  if (rc != 0) {
+    warn("lock_client_connection() returned %i\n",rc);
+  }
 }
 
 void unlock_client_connection(client_connection *con) {
-  pthread_mutex_unlock(&(con->mutex));
+  int rc;
+  do {
+    rc=pthread_mutex_unlock(&(con->mutex));
+  } while (rc == EINTR); 
 }
 
 void set_client_connection_status(client_connection *con, int status, char *statusName, char *statusDescription) {

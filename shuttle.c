@@ -50,6 +50,7 @@ int shuttle_data_back_and_forth(client_connection *con) {
   int rc;
 
   trace("shuttle started");
+  trace("FD = %i %i",con->fd_in, con->fd_out);
 
   // General Comment: This loop structure is rather stupid
   // in that it blocks on read and write operations. IE:
@@ -79,19 +80,15 @@ int shuttle_data_back_and_forth(client_connection *con) {
     trace2("select()... %i %i ",con->fd_in, con->fd_out);
     do {
       rc=select(maxfd+1, &readfds,&writefds,&errorfds,NULL);
-    } while (errno == EAGAIN);
+    } while (rc < 0 && (errno == EAGAIN || errno == EINTR));
     trace2("... select() returned %i",rc);
-    if (rc <0 && errno != EINTR) {
-      errorNum("select()");
-      return 0;
-    }
 
     if (FD_ISSET(con->fd_in,&errorfds)) {
-      error("Error on fd_in socket. Exiting.");
+      errorNum("Error on fd_in socket. Exiting.");
       return 0;
     }
     if (FD_ISSET(con->fd_out,&errorfds)) {
-      error("Error on fd_out socket. Exiting.");
+      errorNum("Error on fd_out socket. Exiting.");
       return 0;
     }
 

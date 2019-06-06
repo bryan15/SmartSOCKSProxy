@@ -24,6 +24,21 @@ void log_file_init() {
   pthread_mutex_init(&log_file_mutex,NULL);
 }
 
+// This stuff is too complicated. http://250bpm.com/blog:12
+int log_file_lock() {
+  int rc;
+  do {
+    rc = pthread_mutex_lock(&log_file_mutex);
+  } while (rc == EINTR); 
+  return rc;
+}
+int log_file_unlock() {
+  int rc;
+  do {
+    rc = pthread_mutex_unlock(&log_file_mutex);
+  } while (rc == EINTR); 
+  return rc;
+}
 
 log_file *new_log_file(char *filename) {
   if (filename == NULL) {
@@ -115,7 +130,10 @@ void log_file_write2(log_file *log, char *buf, int buflen) {
 
 void log_file_write(log_file *log, char *buf, int buflen) {
   int fd = STDOUT_FILENO;
-  pthread_mutex_lock(&log_file_mutex);
+  if (log_file_lock() != 0) {
+    // something wonky with the mutex. Abort! Drop this log message 
+    return ;
+  }
   if (log) {
     fd = log->fd;
   }
@@ -124,7 +142,7 @@ void log_file_write(log_file *log, char *buf, int buflen) {
     fd = log->fd;
   }
   if (fd < 0) {
-    pthread_mutex_unlock(&log_file_mutex);
+    log_file_unlock();
     char buf[8192];
     if (log) {
       snprintf(buf,sizeof(buf)-1,"cannot write to logfile: %s\n",log->file_name);
@@ -143,7 +161,7 @@ void log_file_write(log_file *log, char *buf, int buflen) {
   if (log) {
     log->byte_count += buflen;
   }
-  pthread_mutex_unlock(&log_file_mutex);
+  log_file_unlock();
 }
 
 
@@ -179,9 +197,12 @@ void log_file_rotate(log_file *log) {
     return;
   }
 
-  pthread_mutex_lock(&log_file_mutex);
+  if (log_file_lock() != 0) {
+    // something wonky with the mutex. Don't rotate the file this time around.
+    return;
+  }
   size = log->byte_count;
-  pthread_mutex_unlock(&log_file_mutex);
+  log_file_unlock();
 
   if (size < log->byte_count_max) {
     return;
@@ -220,11 +241,11 @@ void log_file_rotate(log_file *log) {
   // try to open a new file for writing. What would happen if we 
   // hadn't already renamed the file then? Exactly.
   int fd;
-  pthread_mutex_lock(&log_file_mutex);
+  log_file_lock();
   fd=log->fd;
   log->fd=-1;
   log->byte_count=0;
-  pthread_mutex_unlock(&log_file_mutex);
+  log_file_unlock();
   do {
     rc=close(fd); 
   } while (rc<0 && errno == EINTR); 

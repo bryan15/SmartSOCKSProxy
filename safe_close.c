@@ -19,7 +19,7 @@ void safe_close(client_connection *con, int fd) {
     int rc;
     do {
       rc = shutdown(fd,SHUT_RDWR);
-    } while (rc < 0 && errno == EAGAIN);
+    } while (rc < 0 && (errno == EAGAIN || errno == EINTR));
     trace2("shutdown() returned %i",rc);
     do {
       char buf[100];
@@ -28,7 +28,7 @@ void safe_close(client_connection *con, int fd) {
     trace2("read() returned %i",rc);
     do {
       rc=close(fd);
-    } while (rc < 0 && errno == EAGAIN);
+    } while (rc < 0 && (errno == EAGAIN || errno == EINTR));
     trace2("close() returned %i",rc);
   }
 }

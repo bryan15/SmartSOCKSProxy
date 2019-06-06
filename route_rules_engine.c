@@ -69,7 +69,7 @@ int decide_applicable_rule(proxy_instance *proxy, service *srv, client_connectio
       if (this_route_applies) {
         debug("%s line %i: host %s(%s) matches %s",route->file_name, route->file_line_number, name, ipaddr, route->match_is);
       } else {
-        debug("%s line %i: host %s(%s) DOES NOT match %s",route->file_name, route->file_line_number, name, ipaddr, route->match_is);
+        trace("%s line %i: host %s(%s) DOES NOT match %s",route->file_name, route->file_line_number, name, ipaddr, route->match_is);
       }
     }
     if (this_route_applies && route->match_starts_with[0] != 0) {
@@ -79,7 +79,7 @@ int decide_applicable_rule(proxy_instance *proxy, service *srv, client_connectio
       if (this_route_applies) {
         debug("%s line %i: host %s(%s) starts with %s",route->file_name, route->file_line_number, name, ipaddr, route->match_starts_with);
       } else {
-        debug("%s line %i: host %s(%s) DOES NOT start with %s",route->file_name, route->file_line_number, name, ipaddr, route->match_starts_with);
+        trace("%s line %i: host %s(%s) DOES NOT start with %s",route->file_name, route->file_line_number, name, ipaddr, route->match_starts_with);
       }
     }
     if (this_route_applies && route->match_ends_with[0] != 0) {
@@ -89,7 +89,7 @@ int decide_applicable_rule(proxy_instance *proxy, service *srv, client_connectio
       if (this_route_applies) {
         debug("%s line %i: host %s(%s) ends with %s",route->file_name, route->file_line_number, name, ipaddr, route->match_ends_with);
       } else {
-        debug("%s line %i: host %s(%s) DOES NOT end with %s",route->file_name, route->file_line_number, name, ipaddr, route->match_ends_with);
+        trace("%s line %i: host %s(%s) DOES NOT end with %s",route->file_name, route->file_line_number, name, ipaddr, route->match_ends_with);
       }
     }
     if (this_route_applies && route->match_contains[0] != 0) {
@@ -99,7 +99,7 @@ int decide_applicable_rule(proxy_instance *proxy, service *srv, client_connectio
       if (this_route_applies) {
         debug("%s line %i: host %s(%s) contains %s",route->file_name, route->file_line_number, name, ipaddr, route->match_contains);
       } else {
-        debug("%s line %i: host %s(%s) DOES NOT contain %s",route->file_name, route->file_line_number, name, ipaddr, route->match_contains);
+        trace("%s line %i: host %s(%s) DOES NOT contain %s",route->file_name, route->file_line_number, name, ipaddr, route->match_contains);
       }
     }
     if (this_route_applies && route->match_port != 0) {
@@ -109,7 +109,7 @@ int decide_applicable_rule(proxy_instance *proxy, service *srv, client_connectio
       if (this_route_applies) {
         debug("%s line %i: port %i matches %i",route->file_name, route->file_line_number, port, route->match_port);
       } else {
-        debug("%s line %i: port %i DOES NOT match %i",route->file_name, route->file_line_number, port, route->match_port);
+        trace("%s line %i: port %i DOES NOT match %i",route->file_name, route->file_line_number, port, route->match_port);
       }
     }
     if (this_route_applies && route->have_match_ipv4) {
@@ -122,7 +122,7 @@ int decide_applicable_rule(proxy_instance *proxy, service *srv, client_connectio
       if (this_route_applies) {
         debug("%s line %i: host %s(%s) matches network 0x%08x / 0x%08x",route->file_name, route->file_line_number, name, ipaddr, route->match_ipv4_addr, route->match_ipv4_mask);
       } else {
-        debug("%s line %i: host %s(%s) DOES NOT match network 0x%08x / 0x%08x",route->file_name, route->file_line_number, name, ipaddr, route->match_ipv4_addr, route->match_ipv4_mask);
+        trace("%s line %i: host %s(%s) DOES NOT match network 0x%08x / 0x%08x",route->file_name, route->file_line_number, name, ipaddr, route->match_ipv4_addr, route->match_ipv4_mask);
       }
     }
     // 'map' is effectively identical to 'network'. But I'm not sure it always will be, so I made it a seprate command
@@ -136,7 +136,7 @@ int decide_applicable_rule(proxy_instance *proxy, service *srv, client_connectio
       if (this_route_applies) {
         debug("%s line %i: host %s(%s) matches map 0x%08x / 0x%08x",route->file_name, route->file_line_number, name, ipaddr, route->map_ipv4_addr, route->map_ipv4_mask);
       } else {
-        debug("%s line %i: host %s(%s) DOES NOT match map 0x%08x / 0x%08x",route->file_name, route->file_line_number, name, ipaddr, route->map_ipv4_addr, route->map_ipv4_mask);
+        trace("%s line %i: host %s(%s) DOES NOT match map 0x%08x / 0x%08x",route->file_name, route->file_line_number, name, ipaddr, route->map_ipv4_addr, route->map_ipv4_mask);
       }
     }
    
