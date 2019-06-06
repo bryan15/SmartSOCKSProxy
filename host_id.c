@@ -111,7 +111,7 @@ void host_id_set_addr_in_from_byte_array(host_id *id, unsigned char* ipv4, int p
   sin->sin_len = sizeof(struct sockaddr_in);
   sin->sin_family = AF_INET;
   sin->sin_port=htons(port);
-  in_addr_t addr;
+  in_addr_t addr = 0;
   addr |= ipv4[0]; addr <<= 8;
   addr |= ipv4[1]; addr <<= 8;
   addr |= ipv4[2]; addr <<= 8;
