@@ -19,6 +19,7 @@
 #include"service_port_forward.h"
 #include"service_http.h"
 #include"route_rule.h"
+#include"main_config.h"
 
 #define MAX_LINE_LENGTH 10240
 
@@ -355,21 +356,22 @@ int config_set_string(char *filename, int line_num, char *line, char *object_typ
 
 ////////////////////////////////// ////////////////////////////////// ////////////////////////////////// //////////////////////////////////
 
-int config_file_parse_main_entry(char *filename, int line_num, char *line, log_config *log_config_main, log_file **log_file_list, log_file *log_file_default ) {
+int config_file_parse_main_entry(char *filename, int line_num, char *line, main_config *main_conf, log_file **log_file_list, log_file *log_file_default ) {
   char stringBuf[8192];
   if (config_set_string(filename, line_num, line, "main", "", "logFilename ","logFilename <file_name>", stringBuf, sizeof(stringBuf))) {
-    log_config_main->file = find_or_create_log_file(log_file_list, log_file_default, stringBuf);
+    main_conf->log.file = find_or_create_log_file(log_file_list, log_file_default, stringBuf);
     return 1;
   }
   char* help="logVerbosity [error|warn|info|debug|trace|trace2]";
   if (config_set_string(filename, line_num, line, "main", "", "logVerbosity ",help, stringBuf, sizeof(stringBuf))) {
-    log_config_main->level = log_level_from_str(stringBuf);
-    if (log_config_main->level == LOG_LEVEL_INVALID) {
+    main_conf->log.level = log_level_from_str(stringBuf);
+    if (main_conf->log.level == LOG_LEVEL_INVALID) {
       error("USAGE: %s",help);
       return 0;
     }
     return 1;
   }
+  if (config_set_int(filename, line_num, line, "main", "main", "ulimit ","ulimit <int>", &main_conf->ulimit)) return 1;
   return 0;
 }
 
@@ -617,6 +619,7 @@ int route_rule_file_parse(route_rule **route_rule_list, ssh_tunnel *ssh_tunnel_l
     }
     *route_rule_list = insert_route_rule(*route_rule_list, route);
   }
+  close(fd);
   return 1;
 }
 
@@ -624,7 +627,7 @@ int route_rule_file_parse(route_rule **route_rule_list, ssh_tunnel *ssh_tunnel_l
 ////////////////////////////////// ////////////////////////////////// ////////////////////////////////// //////////////////////////////////
 
 int config_file_parse(log_file **log_file_list, log_file *log_file_default, 
-                      log_config *log_config_main, 
+                      main_config *main_conf, 
                       proxy_instance** proxy_instance_list, proxy_instance* proxy_default, 
                       ssh_tunnel** ssh_tunnel_list, ssh_tunnel *ssh_default, 
                       char* filename, char **filename_stack, int filename_stack_size, int filename_stack_index) {
@@ -693,7 +696,7 @@ int config_file_parse(log_file **log_file_list, log_file *log_file_default,
       } else if (filename_stack_index >= filename_stack_size) {
         warn("Attempt to include file \"%s\" blocked; include file recursion cannot go deeper than %i", include_filename, filename_stack_size);
       } else {
-        config_file_parse(log_file_list, log_file_default, log_config_main, 
+        config_file_parse(log_file_list, log_file_default, main_conf, 
                       proxy_instance_list, proxy_default, 
                       ssh_tunnel_list, ssh_default, 
                       include_filename, filename_stack, filename_stack_size, filename_stack_index);
@@ -734,7 +737,7 @@ int config_file_parse(log_file **log_file_list, log_file *log_file_default,
       continue;
     }
     
-    if (main && config_file_parse_main_entry(filename, line_num, line, log_config_main, log_file_list, log_file_default)) {
+    if (main && config_file_parse_main_entry(filename, line_num, line, main_conf, log_file_list, log_file_default)) {
       continue;
     }
     if (log_current && config_file_parse_log_file_entry(filename, line_num, line, log_current)) {
@@ -751,6 +754,7 @@ int config_file_parse(log_file **log_file_list, log_file *log_file_default,
     exit(1);
   }
 
+  close(fd);
   debug("Done reading %s",filename);
   return 1;
 }

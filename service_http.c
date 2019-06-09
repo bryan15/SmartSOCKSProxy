@@ -201,7 +201,7 @@ char *return_connection_state_json(proxy_instance *proxy, service_http *http, cl
 
   // setting this signals our main loop to allocate and populate con->JSONStatusStr;
   con->JSONStatusRequested=1;
-  thread_msg_send(" ",1); // wake up main thread from its blocking select() 
+  thread_msg_send(" ",1); // wake up main thread from its blocking poll() 
   trace("HTTP thread Waiting for our JSON...");
   for (int i=0; i<100 && !con->JSONStatusReady; i++) {
     usleep(10000);

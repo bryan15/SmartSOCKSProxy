@@ -4,7 +4,7 @@
 #include<sys/types.h>
 #include<sys/uio.h>
 #include<unistd.h>
-#include<sys/select.h>
+#include<poll.h>
 #include<errno.h>
 #include<string.h>
 
@@ -27,6 +27,8 @@ int shuttle(client_connection *con, int fd_read, int fd_write) {
   } else if (read_rc < 0) {
     set_client_connection_status(con,errno,"Error",strerror(errno));
     errorNum("read()");
+  } else if (fd_write <0) { // -1 if we cannot write
+    // merely drain the data
   } else {
     buf[read_rc]=0;
     //trace(" (%i) >> %s",read_rc,buf);
@@ -44,10 +46,14 @@ int shuttle(client_connection *con, int fd_read, int fd_write) {
 // IMPROVEMENT: not all errors are reported to the WebUI via set_client_connection_status(). This could be improved. 
 // return 1 if exit cleanly, 0 on error
 int shuttle_data_back_and_forth(client_connection *con) {
-  fd_set readfds, writefds, errorfds;
-  struct timeval timeout;
-  int maxfd;
+  struct pollfd pfd[3];
+  int pfd_max;
+  int pfd_idx;
+  int timeout;
   int rc;
+
+  int in_can_write = 1;
+  int out_can_write = 1;
 
   trace("shuttle started");
   trace("FD = %i %i",con->fd_in, con->fd_out);
@@ -59,41 +65,68 @@ int shuttle_data_back_and_forth(client_connection *con) {
   // But its easy to write this way, so, whatever...
   int continue_loop = 1;
   while (continue_loop) {
-    FD_ZERO(&readfds);
-    FD_ZERO(&writefds);
-    FD_ZERO(&errorfds);
 
-    FD_SET(con->fd_in,&readfds);
-    FD_SET(con->fd_in,&errorfds);
-    FD_SET(con->fd_out,&readfds);
-    FD_SET(con->fd_out,&errorfds);
+    pfd[0].fd = con->fd_in;
+    pfd[0].events = POLLRDNORM;
+    pfd[0].revents = 0;
 
-    if (con->fd_out > con->fd_in) {
-      maxfd=con->fd_out;
-    } else {
-      maxfd=con->fd_in;
+    pfd[1].fd = con->fd_out;
+    pfd[1].events = POLLRDNORM;
+    pfd[1].revents = 0;
+   
+    pfd_max=2;
+    timeout = -1; // block indefinitely
+
+    trace2("poll()... %i %i ",con->fd_in, con->fd_out);
+    do {
+      rc = poll(pfd,pfd_max,timeout);
+    } while (rc < 0 && (errno == EAGAIN || errno == EINTR));
+    trace2("... poll() returned %i",rc);
+    if (rc < 0) {
+      errorNum("poll()");
+      return 0;
     }
 
-    //timeout.tv_sec=1;
-    //timeout.tv_usec=0;
+    for (int i=0;i<pfd_max;i++) {
+      short tmp = pfd[i].revents;
+      tmp |= POLLRDNORM;
+      tmp ^= POLLRDNORM;
+      if (tmp != 0) {
+        trace("poll() %i  fd %i revents = %s %s %s %s %s %s %s %s", i, pfd[i].fd,
+          pfd[i].revents & POLLERR ? "POLLERR" : "",
+          pfd[i].revents & POLLHUP ? "POLLHUP" : "",
+          pfd[i].revents & POLLNVAL ? "POLLNVAL" : "",
+          pfd[i].revents & POLLPRI ? "POLLPRI" : "",
+          pfd[i].revents & POLLRDBAND ? "POLLRDBAND" : "",
+          pfd[i].revents & POLLRDNORM ? "POLLRDNORM" : "",
+          pfd[i].revents & POLLWRBAND ? "POLLWRBAND" : "",
+          pfd[i].revents & POLLWRNORM ? "POLLWRNORM" : ""
+          );
+      }
+    }
 
-    trace2("select()... %i %i ",con->fd_in, con->fd_out);
-    do {
-      rc=select(maxfd+1, &readfds,&writefds,&errorfds,NULL);
-    } while (rc < 0 && (errno == EAGAIN || errno == EINTR));
-    trace2("... select() returned %i",rc);
+    if (pfd[0].revents & POLLHUP) {
+      in_can_write=0;
+    }
+    if (pfd[1].revents & POLLHUP) {
+      out_can_write=0;
+    }
 
-    if (FD_ISSET(con->fd_in,&errorfds)) {
+    if (pfd[0].revents & (POLLERR | POLLNVAL)) {
       errorNum("Error on fd_in socket. Exiting.");
       return 0;
     }
-    if (FD_ISSET(con->fd_out,&errorfds)) {
+    if (pfd[1].revents & (POLLERR | POLLNVAL)) {
       errorNum("Error on fd_out socket. Exiting.");
       return 0;
     }
 
-    if (FD_ISSET(con->fd_in,&readfds)) {
-      rc=shuttle(con, con->fd_in, con->fd_out);
+    if (pfd[0].revents & POLLRDNORM) {
+      if (out_can_write) {
+        rc=shuttle(con, con->fd_in, con->fd_out);
+      } else {
+        rc=shuttle(con, con->fd_in, -1);
+      }
       if (rc<0) {
         return 0; // error
       } else if (rc == 0) {
@@ -104,11 +137,15 @@ int shuttle_data_back_and_forth(client_connection *con) {
         lock_client_connection(con);
         con->bytes_tx += rc;
         unlock_client_connection(con);
-        trace2("shuttle in->out %i bytes",rc);
+        //trace2("shuttle in->out %i bytes",rc);
       }
     }
-    if (FD_ISSET(con->fd_out,&readfds)) {
-      rc=shuttle(con, con->fd_out, con->fd_in);
+    if (pfd[1].revents & POLLRDNORM) {
+      if (in_can_write) {
+        rc=shuttle(con, con->fd_out, con->fd_in);
+      } else {
+        rc=shuttle(con, con->fd_out, -1);
+      }
       if (rc<0) {
         return 0; // error
       } else if (rc == 0) {
@@ -119,9 +156,17 @@ int shuttle_data_back_and_forth(client_connection *con) {
         lock_client_connection(con);
         con->bytes_rx += rc;
         unlock_client_connection(con);
-      //  trace("shuttle in->out %i bytes",rc);
+      //  trace("shuttle out->in %i bytes",rc);
       }
     }
+
+    if (!(in_can_write || (pfd[0].revents&POLLRDNORM))) {
+      continue_loop=0;
+    }
+    if (!(out_can_write || (pfd[1].revents&POLLRDNORM))) {
+      continue_loop=0;
+    }
+
   } 
   // don't need to use mutex because only the connection thread changes these values -- and we're the connection thread :)
   trace("shuttle connection closed normally. Tx %llu  Rx %llu  bytes",con->bytes_tx,con->bytes_rx);

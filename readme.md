@@ -50,9 +50,17 @@ References:
 ## Configuration
 
 
-Command-line options and lines in a config file executed sequentially, in the order they appear. 
+Command-line options and lines in config files executed sequentially, in the order they appear. 
 If two or more config lines set the same value, later lines overwrite earlier lines.
 IE: last line wins. 
+
+SmartSOCKSProxy uses a default ulimit of 4096. If you see the error "Too many open files" in any of the logfiles,
+you may need to increase the value of main -> ulimit in the config file. 
+
+To see the number of open file descriptors used by SmartSOCKSProxy on MacOS: 
+
+    lsof -c smartsocksproxy | wc -l
+
 
 ### Peculiarities
 

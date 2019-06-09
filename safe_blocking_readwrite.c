@@ -55,7 +55,7 @@ int sb_read(int fd, unsigned char *buf, size_t buflen) {
   if (rc > 0) {
     byte_dump(fd, "<< ",buf,rc);
   } else if (rc == 0) {
-    trace("sb_read(): socket unexpectedly closed");
+    trace("sb_read(): socket closed normally");
   }
   return rc;
 }
@@ -78,7 +78,7 @@ int sb_read_len(int fd, unsigned char *buf, size_t buflen) {
     errorNum("read()");
     errno=saved_errno;
   } else if (rc == 0) {
-    trace("sb_read_len(): socket unexpectedly closed");
+    trace("sb_read_len(): socket closed normally");
   }
   if (rc>0) return index;
   return rc;

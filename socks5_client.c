@@ -134,6 +134,7 @@ int connect_to_ssh_socks5_proxy(client_connection *con, ssh_tunnel *tun) {
 
   con->fd_out = socket(PF_INET, SOCK_STREAM, 0);
   if (con->fd_out < 0) {
+    set_client_connection_status(con,errno,"Error",strerror(errno));
     errorNum("socket()");
     return 0;
   }

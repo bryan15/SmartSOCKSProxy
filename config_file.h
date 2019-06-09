@@ -8,9 +8,10 @@
 #include"log_file.h"
 #include"proxy_instance.h"
 #include"ssh_tunnel.h"
+#include"main_config.h"
 
 int config_file_parse(log_file **log_file_list, log_file *log_file_default, 
-                      log_config *log_config_main,
+                      main_config *main_conf,
                       proxy_instance** proxy_instance_list, proxy_instance* proxy_default, 
                       ssh_tunnel** ssh_tunnel_list, ssh_tunnel *ssh_default,
                       char* filename, char** filename_stack, int filename_stack_size, int filename_stack_index);

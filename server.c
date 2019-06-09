@@ -6,7 +6,7 @@
 #include<unistd.h>
 #include<string.h>
 #include<pthread.h>
-#include<sys/select.h>
+#include<poll.h>
 #include<sys/socket.h>
 #include<sys/signal.h>
 #include<errno.h>
@@ -22,6 +22,8 @@
 #include"thread_local.h"
 #include"build_json.h"
 #include"thread_msg.h"
+#include"server.h"
+#include"main_config.h"
 
 int exit_server=0;
 
@@ -150,19 +152,6 @@ client_connection *cleanup_connections(client_connection *pool) {
   return pool;
 }
 
-int set_fds(int fd, int fd_max, fd_set *set1, fd_set *set2, fd_set *set3) {
-  if (fd <0) {
-    return fd_max;
-  }
-  if (set1) { FD_SET(fd,set1); }
-  if (set2) { FD_SET(fd,set2); }
-  if (set3) { FD_SET(fd,set3); }
-  if (fd > fd_max) {
-    return fd;
-  }
-  return fd_max; 
-}
-
 void read_from_child(char *label, ssh_tunnel *ssh, int fd) {
   int rc; 
   char tmpbuf[2000]; 
@@ -181,9 +170,30 @@ void read_from_child(char *label, ssh_tunnel *ssh, int fd) {
   }
 }
 
+void set_pfd(int ulimit, struct pollfd pfd[], int *index, int fd) {
+  if (*index < 0 || *index >= ulimit) {
+    unexpected_exit(95,"set_pfd()"); // FIXME TODO
+  }
+  pfd[*index].fd = fd;
+  pfd[*index].events = POLLRDNORM;
+  pfd[*index].revents = 0;
+  (*index)++;
+}
+int find_pfd(struct pollfd pfd[], int max, int fd) { // FIXME TODO this is very inefficient
+  if (fd < 0) {
+    return -1;
+  }
+  for (int i=0; i<max; i++) {
+    if (pfd[i].fd == fd) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 // Main loop
 //int server(int port, port_forward *port_forward_pool) {
-int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tunnel *ssh_tunnel_list, log_config *main_log_config) {
+int server(log_file* log_file_list, proxy_instance* proxy_instance_list, ssh_tunnel* ssh_tunnel_list, main_config *main_conf) {
 
   // On a Macbook coming out of sleep, seems we get a SIGPIPE on our sockets & pipes. 
   // Example error message:
@@ -207,9 +217,9 @@ int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tun
   }
 
   // We have limited need for worker threads to wake-up the main thread 
-  // (ie: break out of blocking select())
+  // (ie: break out of blocking poll())
   // For this purpose, we create a pipe. This pipe is included
-  // in select(). To wake up the main thread, write a byte to the
+  // in poll(). To wake up the main thread, write a byte to the
   // pipe. That's it. Currently, the contents of the data written
   // to the pipe is irrelevant and discarded. 
   int msg_pipe[2];
@@ -231,100 +241,125 @@ int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tun
   } 
   thread_local_set_service(NULL);
   thread_local_set_proxy_instance(NULL);
-  thread_local_set_log_config(main_log_config);
+  thread_local_set_log_config(&main_conf->log);
 
   time_t proxy_start_time = time(NULL);
 
-  struct sockaddr_in client_addr;
-  fd_set readfds, writefds, errorfds;
-  struct timeval timeout;
-  int maxfd=-1;
+
+  struct pollfd *pfd;
+  int pfd_max;
+  int pfd_idx;
   int rc;
+  int timeout;
+  struct sockaddr_in client_addr;
   client_connection *pool=NULL;
+
+  pfd=malloc(sizeof(struct pollfd) * main_conf->ulimit +1); 
+  if (pfd < 0) {
+    errorNum("malloc() for pollfd");
+    unexpected_exit(87,"malloc()");
+  }
+
   while (!exit_server) { 
     //trace2("loop"); // some things are too much even for trace2
 
-    FD_ZERO(&readfds);
-    FD_ZERO(&writefds);
-    FD_ZERO(&errorfds);
+    pfd_max=0;
+
+    set_pfd(main_conf->ulimit, pfd, &pfd_max, thread_msg_fd);
 
     for (proxy_instance *proxy=proxy_instance_list; proxy; proxy = proxy -> next) {
       for (service *srv = proxy->service_list; srv; srv=srv->next) {
-        maxfd = set_fds(srv->fd, maxfd, &readfds, &errorfds, NULL);
+        set_pfd(main_conf->ulimit, pfd, &pfd_max, srv->fd);
       }
     }
 
     for (ssh_tunnel *ssh=ssh_tunnel_list; ssh; ssh=ssh->next) {
-      maxfd = set_fds(ssh->parent_stdout_fd, maxfd, &readfds, &errorfds, NULL);
-      maxfd = set_fds(ssh->parent_stderr_fd, maxfd, &readfds, &errorfds, NULL);
+      set_pfd(main_conf->ulimit, pfd, &pfd_max, ssh->parent_stdout_fd);
+      set_pfd(main_conf->ulimit, pfd, &pfd_max, ssh->parent_stderr_fd);
     }
-    maxfd = set_fds(thread_msg_fd, maxfd, &readfds, &errorfds, NULL);
 
     // this is arbitrary... no magic here. 
     // just wake up periodically and reap dead threads.
-    timeout.tv_sec=1;
-    timeout.tv_usec=200000;
+    timeout = 1200;
 
-    //trace("select()...");
+    //trace("poll()...");
     do {
-      rc=select(maxfd+1, &readfds,&writefds,&errorfds,&timeout);
+      rc = poll(pfd,pfd_max,timeout);
     } while (errno == EAGAIN);
-    //trace("... select() returned %i",rc);
+    //trace("... poll() returned %i",rc);
     if (rc <0 && errno != EINTR) {
-      errorNum("listen select()");
-      unexpected_exit(87,"select()");
+      errorNum("listen poll()");
+      unexpected_exit(87,"poll()");
     }
-
-    thread_local_set_log_config(NULL);
-    for (proxy_instance *proxy=proxy_instance_list; proxy; proxy = proxy -> next) {
-      thread_local_set_proxy_instance(proxy); // for log messages
-      for (service *srv = proxy->service_list; srv; srv=srv->next) {
-        thread_local_set_service(srv); // for log messages
-        if (FD_ISSET(srv->fd,&errorfds)) {
-          error("Error on listen socket. Exiting.");
-          unexpected_exit(88,"service fd error"); // FIXME: should handle this more elegantly. Maybe no need to exit. But it should never happen if we properly handle all events. 
-        }
+    
+    for (int i=0;i<pfd_max;i++) {
+      short tmp = pfd[i].revents;
+      tmp |= POLLRDNORM; 
+      tmp ^= POLLRDNORM; 
+      if (tmp != 0) {
+        trace("poll() %i  fd %i revents = %s %s %s %s %s %s %s %s\n", i, pfd[i].fd,
+          pfd[i].revents & POLLERR ? "POLLERR" : "",
+          pfd[i].revents & POLLHUP ? "POLLHUP" : "",
+          pfd[i].revents & POLLNVAL ? "POLLNVAL" : "",
+          pfd[i].revents & POLLPRI ? "POLLPRI" : "",
+          pfd[i].revents & POLLRDBAND ? "POLLRDBAND" : "",
+          pfd[i].revents & POLLRDNORM ? "POLLRDNORM" : "",
+          pfd[i].revents & POLLWRBAND ? "POLLWRBAND" : "",
+          pfd[i].revents & POLLWRNORM ? "POLLWRNORM" : ""
+          );
       }
-    }
-    thread_local_set_service(NULL);
-    thread_local_set_proxy_instance(NULL);
-    thread_local_set_log_config(main_log_config);
-
-    if (FD_ISSET(thread_msg_fd,&errorfds)) { // more tedium
-      error("Error on thread_msg pipe. Exiting.");
-      unexpected_exit(90,"thread_msg_fd");
     }
 
     for (ssh_tunnel *ssh=ssh_tunnel_list; ssh; ssh=ssh->next) {
-      if (ssh->parent_stdout_fd >= 0 && FD_ISSET(ssh->parent_stdout_fd,&errorfds)) {
+      pfd_idx = find_pfd(pfd,pfd_max,ssh->parent_stdout_fd);
+      if (pfd_idx >=0 && pfd[pfd_idx].revents & (POLLERR | POLLNVAL)) {
         error("Error on child stdout pipe. Exiting.");
         unexpected_exit(93,"child stdout"); // IMPROVEMENT: just kill+reset the child
       }
-      if (ssh->parent_stderr_fd >= 0 && FD_ISSET(ssh->parent_stderr_fd,&errorfds)) {
+      if (pfd_idx >=0 && pfd[pfd_idx].revents & POLLRDNORM) {
+        read_from_child("STDOUT", ssh, ssh->parent_stdout_fd);
+      }
+      pfd_idx = find_pfd(pfd,pfd_max,ssh->parent_stderr_fd);
+      if (pfd_idx >=0 && pfd[pfd_idx].revents & (POLLERR | POLLNVAL)) {
         error("Error on child stderr pipe. Exiting.");
         unexpected_exit(94,"child stderr"); // IMPROVEMENT: just kill+reset the child
       }
-      if (ssh->parent_stdout_fd >= 0 && FD_ISSET(ssh->parent_stdout_fd,&readfds)) {
-        read_from_child("STDOUT", ssh, ssh->parent_stdout_fd);
-      }
-      if (ssh->parent_stderr_fd >= 0 && FD_ISSET(ssh->parent_stderr_fd,&readfds)) {
+      if (pfd_idx >=0 && pfd[pfd_idx].revents & POLLRDNORM) {
         read_from_child("STDERR", ssh, ssh->parent_stderr_fd);
       }
     }
 
-    if (FD_ISSET(thread_msg_fd,&readfds)) {
+    pfd_idx = find_pfd(pfd,pfd_max,thread_msg_fd);
+    if (pfd_idx < 0) {
+     error("Did not find thread_msg_fd in pfd[]. This should not happen");
+    }
+    if (pfd_idx >=0 && pfd[pfd_idx].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+      error("Error on thread_msg pipe. Exiting.");
+      unexpected_exit(90,"thread_msg_fd");
+    }
+    if (pfd_idx >=0 && pfd[pfd_idx].revents & POLLRDNORM) {
       char tmpbuf[1000]; 
       read(thread_msg_fd,tmpbuf,sizeof(tmpbuf)-1);
-      // if we fail to read all available data, select() will wake us up again - which is fine. 
+      // if we fail to read all available data, poll() will wake us up again - which is fine. 
     }
 
     // Create new threads to handle socket connection
     thread_local_set_log_config(NULL);
     for (proxy_instance *proxy=proxy_instance_list; proxy; proxy = proxy -> next) {
-      thread_local_set_proxy_instance(proxy);
       for (service *srv = proxy->service_list; srv; srv=srv->next) {
-        thread_local_set_service(srv);
-        if (FD_ISSET(srv->fd,&readfds)) {
+        pfd_idx = find_pfd(pfd,pfd_max,srv->fd);
+        if (pfd_idx < 0) {
+           error("Did not find service type %i in pfd[]. This should not happen", srv->type);
+        }
+        if (pfd >=0 && pfd[pfd_idx].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+          thread_local_set_proxy_instance(proxy); // for log messages
+          thread_local_set_service(srv); // for log messages
+          error("Error on listen socket. Exiting.");
+          unexpected_exit(88,"service fd error"); // FIXME: should handle this more elegantly. Maybe no need to exit. But it should never happen if we properly handle all events. 
+        }
+        if (pfd_idx >=0 && pfd[pfd_idx].revents & (POLLPRI | POLLRDBAND | POLLRDNORM)) {
+          thread_local_set_proxy_instance(proxy);
+          thread_local_set_service(srv);
           client_connection *con = accept_connection(srv);
           if (con != NULL) {
             proxy->client_connection_list = insert_client_connection(proxy->client_connection_list, con);
@@ -339,7 +374,7 @@ int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tun
     }
     thread_local_set_service(NULL);
     thread_local_set_proxy_instance(NULL);
-    thread_local_set_log_config(main_log_config);
+    thread_local_set_log_config(&main_conf->log);
 
     // clean up any exited / deleted connections
     thread_local_set_log_config(NULL);
@@ -348,7 +383,7 @@ int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tun
       proxy->client_connection_list = cleanup_connections(proxy->client_connection_list);
     }
     thread_local_set_proxy_instance(NULL);
-    thread_local_set_log_config(main_log_config);
+    thread_local_set_log_config(&main_conf->log);
 
     // check on SSH tunnels
     check_ssh_tunnels(proxy_instance_list, ssh_tunnel_list);
@@ -388,7 +423,7 @@ int server(log_file *log_file_list, proxy_instance *proxy_instance_list, ssh_tun
         }
       }
       thread_local_set_proxy_instance(NULL);
-      thread_local_set_log_config(main_log_config);
+      thread_local_set_log_config(&main_conf->log);
       if (json) {
         free(json);
       } 

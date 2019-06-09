@@ -169,7 +169,8 @@ int decide_applicable_rule(proxy_instance *proxy, service *srv, client_connectio
     }
 
     if (this_route_applies && route->resolve_dns) {
-      debug("%s line %i: Executing DNS lookup for %s",route->file_name, route->file_line_number, name);
+      char buf[300];
+      debug("%s line %i: Executing DNS lookup for hostname %s ip %s",route->file_name, route->file_line_number, name, host_id_addr_str(dst, buf, sizeof(buf)));
       host_id tmp_id = *dst;
       resolve_dns_for_host_id(&tmp_id);
 

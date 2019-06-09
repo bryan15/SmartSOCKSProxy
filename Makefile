@@ -25,7 +25,7 @@ OBJFILES = log.o log_level.o log_file.o\
 	safe_blocking_readwrite.o listen_socket.o \
         thread_local.o thread_msg.o proxy_instance.o \
 	ssh_tunnel.o ssh_policy.o \
-	route_rule.o route_rules_engine.o host_id.o
+	route_rule.o route_rules_engine.o host_id.o main_config.o
 
 PROXYOBJFILES = $(OBJFILES) main.o
 
@@ -161,6 +161,9 @@ host_id.o: host_id.c
 
 config_file.o: config_file.c
 	$(CC) $(CFLAGS) -c config_file.c -o config_file.o
+
+main_config.o: main_config.c
+	$(CC) $(CFLAGS) -c main_config.c -o main_config.o
 
 unit_test.o: unit_test.c
 	$(CC) $(CFLAGS) -c unit_test.c -o unit_test.o

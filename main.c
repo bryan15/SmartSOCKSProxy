@@ -18,6 +18,7 @@
 #include"proxy_instance.h"
 #include"config_file.h"
 #include"version.h"
+#include"main_config.h"
 
 // These pragma's are to squelch a warning. 
 #pragma GCC diagnostic push
@@ -60,10 +61,12 @@ int main(int argc,char **argv) {
   log_init();
   log_file_init();
   // main() logging setup
-  log_config  main_log_config;
-  log_config_init(&main_log_config);
-  main_log_config.level=LOG_LEVEL_INFO;
-  thread_local_set_log_config(&main_log_config);
+  main_config main_conf;
+  main_config_init(&main_conf);
+  main_conf.log.level=LOG_LEVEL_INFO;
+  thread_local_set_log_config(&main_conf.log);
+
+
 
   // List of all logfiles we write to, and a special one to hold default settings
   log_file* log_file_list = NULL;
@@ -103,7 +106,7 @@ int main(int argc,char **argv) {
   while ((option = getopt(argc,argv, "c:dv:V:h")) != -1) {
     switch(option) {
       case 'c':
-        if (!config_file_parse(&log_file_list, log_file_default, &main_log_config, 
+        if (!config_file_parse(&log_file_list, log_file_default, &main_conf, 
                                &proxy_instance_list, proxy_instance_default, 
                                &ssh_tunnel_list, ssh_tunnel_default, 
                                optarg, filename_stack, CONFIG_FILENAME_STACK_SIZE, 0)) {
@@ -114,11 +117,11 @@ int main(int argc,char **argv) {
         daemonize = 1;
         break;
       case 'v':
-        main_log_config.level = log_level_from_str(optarg);
-        trace("set main thread verbosity to %s",log_level_str(main_log_config.level));
+        main_conf.log.level = log_level_from_str(optarg);
+        trace("set main thread verbosity to %s",log_level_str(main_conf.log.level));
         break;
       case 'V':
-        main_log_config.file = find_or_create_log_file(&log_file_list, log_file_default, optarg);
+        main_conf.log.file = find_or_create_log_file(&log_file_list, log_file_default, optarg);
         break;
       case 'h':
         help=1;
@@ -175,10 +178,10 @@ int main(int argc,char **argv) {
     unexpected_exit(12,"daemon()");
   }
 
-  if (set_ulimit(4096) != 0) {
+  if (set_ulimit(main_conf.ulimit) != 0) {
     unexpected_exit(13,"set_ulimit()");
   }
 
-  return server(log_file_list, proxy_instance_list, ssh_tunnel_list, &main_log_config);
+  return server(log_file_list, proxy_instance_list, ssh_tunnel_list, &main_conf);
 }
 

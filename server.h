@@ -7,7 +7,8 @@
 #include"log_file.h"
 #include"proxy_instance.h"
 #include"ssh_tunnel.h"
+#include"main_config.h"
 
-int server(log_file* log_file_list, proxy_instance* proxy_instance_list, ssh_tunnel* ssh_tunnel_list, log_config *main_log_config);
+int server(log_file* log_file_list, proxy_instance* proxy_instance_list, ssh_tunnel* ssh_tunnel_list, main_config *main_conf);
 
 #endif // SERVER_H
