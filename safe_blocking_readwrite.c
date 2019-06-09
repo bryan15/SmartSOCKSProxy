@@ -10,6 +10,7 @@
 #include"log.h"
 #include"safe_blocking_readwrite.h"
 #include"thread_local.h"
+#include"proxy_instance.h"
 
 void byte_dump(int fd, char *prefix, unsigned char *buf, size_t buflen) {
   char line[1000], *ptr;
@@ -20,7 +21,11 @@ void byte_dump(int fd, char *prefix, unsigned char *buf, size_t buflen) {
   // is going to be ignored anyways, then don't generate
   // the output.
   log_config *conf = thread_local_get_log_config();
-  if (conf != NULL && conf->level > LOG_LEVEL_TRACE2) {
+  if (conf != NULL && conf->level != LOG_LEVEL_TRACE2) {
+    return;
+  }
+  proxy_instance *proxy = thread_local_get_proxy_instance();
+  if (proxy != NULL && proxy->log.level != LOG_LEVEL_TRACE2) {
     return;
   }
 

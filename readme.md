@@ -160,6 +160,14 @@ If the IP address resides within a remote segmented network:
   - IPv6 is unsupported
     - although most of the functionality is there, IPv6 is untested and not implemented in several areas. 
 
+## Development Notes
+
+## MacOS
+
+Useful tools:
+
+  - audit open file handles with "lsof -c smartsocksproxy"
+  - "Instruments" is a built-in Mac profiler. Easy to use. Identifies what parts of code are consuming CPU.
 
  
 ## Inspiration: 
