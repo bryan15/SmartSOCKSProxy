@@ -16,6 +16,7 @@
 #include"ssh_tunnel.h"
 
 void log_init() {
+  tzset();
 }
 
 void log_config_init(log_config *conf) {

@@ -17,7 +17,7 @@ int thread_local_init_key(pthread_key_t* key) {
   int rc = 0;
   do {
     rc = pthread_key_create(key,NULL);
-  } while (rc<0 && (errno==EINTR || errno==EAGAIN));
+  } while (rc<0 && errno==EINTR);
   if (rc<0) {
     perror("Could not initialize thread-local storage: ");
   }

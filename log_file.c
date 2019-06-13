@@ -109,7 +109,7 @@ void log_file_open(log_file *log) {
   
   int rc;
   do {
-    rc=open( log->file_name, O_CREAT | O_APPEND | O_RDWR | O_EXLOCK | O_NONBLOCK );
+    rc=open( log->file_name, O_CREAT | O_APPEND | O_RDWR | O_NONBLOCK );
   } while (rc < 0 && errno == EINTR);
   if (rc < 0) {
     char buf[LOG_FILE_NAME_MAX_LEN+2000];
@@ -157,7 +157,7 @@ void log_file_write(log_file *log, char *buf, int buflen) {
   do {
     rc = write(fd,buf,buflen);
   } while (rc < 0 && errno == EINTR);
-  // if we get other errors, like EAGAIN, simply drop this log message. Sorry, best effort, I tried. 
+  // if we get other errors, simply drop this log message. Sorry, best effort, I tried. 
   if (log) {
     log->byte_count += buflen;
   }

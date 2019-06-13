@@ -17,6 +17,6 @@ void thread_msg_send(char *msg, int len) {
   int rc;
   do {
     rc=write(thread_messaging_fd,msg,len);
-  } while (rc<0 && (errno==EINTR || errno==EAGAIN));
+  } while (rc<0 && errno==EINTR);
 }
 

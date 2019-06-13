@@ -80,7 +80,7 @@ int shuttle_data_back_and_forth(client_connection *con) {
     trace2("poll()... %i %i ",con->fd_in, con->fd_out);
     do {
       rc = poll(pfd,pfd_max,timeout);
-    } while (rc < 0 && (errno == EAGAIN || errno == EINTR));
+    } while (rc < 0 && errno == EINTR);
     trace2("... poll() returned %i",rc);
     if (rc < 0) {
       errorNum("poll()");

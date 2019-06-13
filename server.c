@@ -96,7 +96,7 @@ client_connection *accept_connection(service *srv) {
   int new_client_fd;
   do {
     new_client_fd = accept(srv->fd,(struct sockaddr *)&new_client_addr, &len);
-  } while (new_client_fd < 0 && (errno==EINTR || errno==EAGAIN));
+  } while (new_client_fd < 0 && errno==EINTR);
 
   if (new_client_fd <0) { 
     errorNum("accept()");

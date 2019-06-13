@@ -139,7 +139,7 @@ int connect_to_ssh_socks5_proxy(client_connection *con, ssh_tunnel *tun) {
     return 0;
   }
 
-  // FIXME get local address from ssh_tunnel structure
+  // FIXME: get local address from ssh_tunnel structure
   unsigned long proxy_ip = 0x7F000001; // 127.0.0.1
   int proxy_port = tun->socks_port;
 
@@ -147,6 +147,7 @@ int connect_to_ssh_socks5_proxy(client_connection *con, ssh_tunnel *tun) {
 
   // FIXME TODO: support ipv6
   bzero(&saddr_in, sizeof(saddr_in));
+  saddr_in.sin_len = sizeof(saddr_in);
   saddr_in.sin_addr.s_addr = htonl(proxy_ip);
   saddr_in.sin_family = AF_INET;
   saddr_in.sin_port = htons(proxy_port); 
@@ -154,7 +155,7 @@ int connect_to_ssh_socks5_proxy(client_connection *con, ssh_tunnel *tun) {
   int rc;
   do {
     rc = connect(con->fd_out, (struct sockaddr*)&saddr_in, sizeof(saddr_in));
-  } while (rc < 0 && (errno == EAGAIN || errno == EINTR));
+  } while (rc < 0 && errno == EINTR);
   if (rc < 0) {
     int tmp_errno=errno;
     do {

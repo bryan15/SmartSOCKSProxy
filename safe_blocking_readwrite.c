@@ -51,7 +51,7 @@ int sb_read(int fd, unsigned char *buf, size_t buflen) {
   int rc;
   do {
     rc=read(fd,buf,buflen);
-  } while (rc<0 && (errno==EINTR || errno==EAGAIN));
+  } while (rc<0 && errno==EINTR );
   if (rc<0 && errno != ECONNRESET) {
     int saved_errno=errno;
     errorNum("read()");
@@ -77,7 +77,7 @@ int sb_read_len(int fd, unsigned char *buf, size_t buflen) {
       remain -= rc;
       index  += rc;
     }
-  } while ((rc>0 && remain>0) || (rc<0 && (errno==EINTR || errno==EAGAIN)));
+  } while ((rc>0 && remain>0) || (rc<0 && errno==EINTR ));
   if (rc<0 && errno != ECONNRESET) {
     int saved_errno=errno;
     errorNum("read()");
@@ -101,7 +101,7 @@ int sb_write_len(int fd, unsigned char *buf, size_t buflen) {
       remain -= rc;
       index  += rc;
     }
-  } while ((rc>=0 && remain>0) || (rc<0 && (errno==EINTR || errno==EAGAIN)));
+  } while ((rc>=0 && remain>0) || (rc<0 && errno==EINTR));
   if (rc<0 && errno != ECONNRESET) {
     errorNum("write()");
   }

@@ -47,7 +47,7 @@ int read_line(int fd, char* buf, int buflen, int* cr, int* lf, char *filename, i
     char chr;
     do {
       rc = read(fd, &chr, 1);
-    } while (rc < 0 && (errno == EINTR || errno == EAGAIN));
+    } while (rc < 0 && errno == EINTR);
     if (rc < 0) {
       errorNum("Error reading file '%s'",filename);
       return 0;

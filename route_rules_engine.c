@@ -170,16 +170,20 @@ int decide_applicable_rule(proxy_instance *proxy, service *srv, client_connectio
 
     if (this_route_applies && route->resolve_dns) {
       char buf[300];
-      debug("%s line %i: Executing DNS lookup for hostname %s ip %s",route->file_name, route->file_line_number, name, host_id_addr_str(dst, buf, sizeof(buf)));
-      host_id tmp_id = *dst;
-      resolve_dns_for_host_id(&tmp_id);
+      if (host_id_has_name(dst)) {
+        host_id tmp_id = *dst;
+        debug("%s line %i: Executing DNS lookup for hostname %s ip %s",route->file_name, route->file_line_number, name, host_id_addr_str(dst, buf, sizeof(buf)));
+        resolve_dns_for_host_id(&tmp_id);
 
-      lock_client_connection(con);
-      *dst=tmp_id;
-      unlock_client_connection(con);
+        lock_client_connection(con);
+        *dst=tmp_id;
+        unlock_client_connection(con);
 
-      name = rre_get_host_id_name(dst, name_mem, sizeof(name_mem));
-      ipaddr = rre_get_host_id_addr(dst,ipaddr_mem, sizeof(ipaddr_mem), &family, &ipv4_addr);
+        name = rre_get_host_id_name(dst, name_mem, sizeof(name_mem));
+        ipaddr = rre_get_host_id_addr(dst,ipaddr_mem, sizeof(ipaddr_mem), &family, &ipv4_addr);
+      } else {
+        debug("%s line %i: destination %s has no hostname associated with it, nothing to resovle via DNS.",route->file_name, route->file_line_number, host_id_addr_str(dst, buf, sizeof(buf)));
+      }
     }
 
     ////////////////

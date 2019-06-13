@@ -86,12 +86,17 @@ void remove_client_connection(client_connection *con) {
 void free_client_connection(client_connection *con) {
   trace2("free_client_connection()");
   remove_client_connection(con);
+  int rc;
   if (con->fd_in > -1) {
-    close(con->fd_in);
+    do {
+      rc = close(con->fd_in);
+    } while (rc<0 && errno == EINTR);
     con->fd_in=-1;
   }
   if (con->fd_out > -1) {
-    close(con->fd_out);
+    do {
+      close(con->fd_out);
+    } while (rc<0 && errno == EINTR);
     con->fd_out=-1;
   }
   free(con);
