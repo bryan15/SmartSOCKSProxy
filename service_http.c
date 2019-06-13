@@ -184,7 +184,10 @@ char *return_file_contents(proxy_instance *proxy, service_http *http, client_con
       if (ok) ok=basic_response(con, responseStr, NULL);
     }
     if (file_fd >= 0) { 
-      close(file_fd);
+      int rc; 
+      do { 
+        rc = close(file_fd);
+      } while (rc < 0 && errno == EINTR);
       file_fd=-1;
     }
   } else {
