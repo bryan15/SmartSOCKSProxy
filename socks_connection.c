@@ -74,7 +74,7 @@ int connect_direct(client_connection *con, int *failure_type) {
   int rc;
   do {
     rc = connect(con->fd_out, (struct sockaddr*)&saddr_in, sizeof(saddr_in));
-  } while (rc < 0 && (errno == EAGAIN || errno == EINTR));
+  } while (rc < 0 && errno == EINTR);
   if (rc < 0) {
     int tmp_errno=errno;
     do {
@@ -108,7 +108,7 @@ int socks_connect(proxy_instance *proxy, service *srv, client_connection *con, i
   for (tun_max=0; route->tunnel[tun_max] != NULL && tun_max < ROUTE_RULE_MAX_SSH_TUNNELS_PER_RULE; tun_max++) {
     ssh_tunnel *tun = route->tunnel[tun_max];
     if (tun != ssh_tunnel_direct && tun != ssh_tunnel_null && tun->command_to_run[0]) {
-      have_ssh_tunnel=0;
+      have_ssh_tunnel=1;
     }
   }
   if (tun_max == 0) {
@@ -148,6 +148,12 @@ int socks_connect(proxy_instance *proxy, service *srv, client_connection *con, i
       lock_client_connection(con);
       con->tunnel = NULL;
       unlock_client_connection(con);
+      if (con->fd_out >0) {
+        do {
+          rc = close(con->fd_out);
+        } while (rc<0 && errno == EINTR);
+        con->fd_out=-1;
+      }
       if (connect_attempt >= 100) {
         trace("Connection attempt failed. Giving up.");
         ok=0;
