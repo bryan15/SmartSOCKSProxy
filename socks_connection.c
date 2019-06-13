@@ -149,6 +149,7 @@ int socks_connect(proxy_instance *proxy, service *srv, client_connection *con, i
       con->tunnel = NULL;
       unlock_client_connection(con);
       if (con->fd_out >0) {
+        int rc;
         do {
           rc = close(con->fd_out);
         } while (rc<0 && errno == EINTR);
