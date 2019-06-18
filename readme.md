@@ -1,11 +1,11 @@
 # SmartSOCKSProxy
 
-Routing between network segments is often impaired by NAT or a firewall for security. 
-Gaining access to services behind the firewall requires an authenticated tunnel such as VPN or SSH.
+Routing between network segments is often impaired by NAT or firewalls for security. 
+Gaining access to services behind the firewall requires an authenticated tunnel such as SSH.
 
 This works fine until we try to access services in multiple network segments at the same time. It's not
 obvious how to route any given connection - should it be routed directly to the IP address,
-go through a VPN, or use SSH as a proxy? Who is responsible for deciding how to route connections, and
+use SSH as a proxy? Who is responsible for deciding how to route connections, and
 who is responsible for starting and stoping SSH sessions?
 
 SmartSOCKSProxy, that's who.
@@ -18,49 +18,140 @@ which may not appear on the local network segment, without resorting to override
 ## Requirements / Setup:
 
   - Build SmartSOCKSProxy on MacOS: You may need to install xcode?
-    - cd smartsocksproxy ; make clean ; make -j4 all
-    - the above command should complete without any errors
-
-  - You can ssh into your bastions without a password (if id_rsa is password protected, run “ssh-add ~/.ssh/id_rsa”)
+    - git clone https://github.com/bryan15/SmartSOCKSProxy.git
+    - cd SmartSOCKSProxy ; make clean ; make -j4 all
+      - the above command should complete without any errors
+     
+  - Ensure you can ssh into your bastions without a password (if id_rsa is password protected, run “ssh-add ~/.ssh/id_rsa”)
 
   - Run the unit tests 
     - make test
 
+  - cp ssp.conf.example ssp.conf    # edit as required
+
   - Test SmartSOCKSProxy by running in the foreground:
-    - ./smartsocksproxy
+    - ./smartsocksproxy -c ssp.conf
 
   - Copy and edit "run_smartsocksproxy.sh.example"; modify the path to smartsocksproxy you built above.
     Note: this example shell also contains static port-forwarding for access to Dev/QA/Prod Databases. 
     Because SQLDeveloper circumvents JVM SOCKS5 support.  
 
 Running "./smartsocksproxy -h" provides a brief help summary. 
+
 ## Build
+
+    $ make -j4 test  # should pass with no errors
+    $ make -j4 all
 
 ### React
 
 To keep things simple, this project uses React without a build step. To download pre-compiled react components:
 
-    make react
+    $ make react
 
 References:
 
- - https://medium.com/@chrislewisdev/react-without-npm-babel-or-webpack-1e9a6049714
- - https://shinglyu.com/web/2018/02/08/minimal-react-js-without-a-build-step-updated.html
+* https://medium.com/@chrislewisdev/react-without-npm-babel-or-webpack-1e9a6049714
+* https://shinglyu.com/web/2018/02/08/minimal-react-js-without-a-build-step-updated.html
 
 ## Configuration
 
-
 Command-line options and lines in config files executed sequentially, in the order they appear. 
 If two or more config lines set the same value, later lines overwrite earlier lines.
-IE: last line wins. 
 
-SmartSOCKSProxy uses a default ulimit of 4096. If you see the error "Too many open files" in any of the logfiles,
-you may need to increase the value of main -> ulimit in the config file. 
+### Proxy Instances
 
-To see the number of open file descriptors used by SmartSOCKSProxy on MacOS: 
+SmartSOCKSProxy lets you specify multiple "proxy instances". The primary reason for using multiple
+separate "proxy instances" is for debugging. Most of the time you spent struggling with SmartSOCKSProxy
+will be spent trying to understand where network connections are going, what's happening, and why. 
+It helps to separate the wheat from the chaff, so to speak. 
 
-    lsof -c smartsocksproxy | wc -l
+Therefore, each "proxy instance", created by the "proxy" keyword (see below) in the config file, 
+can specify a separate log file and verbosity level. They also appear under separate tabs in the WebUI. 
 
+Each "proxy instance" section has its own set of routing rules. See "Rules" below for rule format. 
+
+### Logfiles
+
+Multiple "proxy instances" can use a single logfile. Or separate logfiles. Whatever you wish. 
+You can specify the maximum size of a logfile before the file is rotated, and the number of
+previous rotations to keep before deleting the file. 
+
+### SSH
+
+The SSH configuration sectino lets you specify the command to run to bring up the SSH tunnel, and
+the SOCKS port the SSH instance will listen on for SOCKS5 connections. See SSH -D option for more information. 
+
+### Config file
+
+Format (in no particular order):
+
+* main
+  * logFilename  [ \<filename\> | - ]
+  * logVerbosity [ error | warn | info | debug | trace | trace2 ]
+* logfile [ \<filename\> | default ]
+  * fileRotateCount \<count\>
+  * byteCountMax \<max_bytes_before_rotating\>
+* ssh [ \<tunnel_name\> | default ]
+  * logFilename  [ \<filename\> | - ]
+  * logVerbosity [ error | warn | info | debug | trace | trace2 ]
+  * socksPort \<SSH_SOCKS_port\>
+  * command \<SSH command\>
+* proxy [ \<proxy_instance_name\> | default ]
+  * logFilename  [ \<filename\> | - ]
+  * logVerbosity [ error | warn | info | debug | trace | trace2 ]
+  * socksServer [\<bind_address\>:]\<port\>
+  * httpServer [\<bind_address\>:]\<port\>:\<html_directory\>
+  * portForward [\<bind_address:]\<local_port\>:\<remote_host\>:\<remote_port\>
+  * route \<rule\>
+  * routeFile \<filename\>
+  * routeDir \<dirname\>
+  * include \<file\>
+
+"routeFile" will read all rules from the specified file, as though specified with the "route" command in the config file. 
+
+"routeDir" will read all files in the specified directory, sorted alphabetically and parsed in order, and parse them as though they were specified in a "routeFile" command in the config file. 
+
+The config file parser supports primitive environment variable substitution; ${var} will be converted to the value of the environment variable "var" before the line is evaluated.
+
+### Rules 
+
+Each rule consists of three parts: Condition, Permutation and Action.
+
+* Criteria - all criteria must be satisfied for the rule to take effect
+  * is \<dns_or_ip\>
+  * startsWith \<dns_or_ip\>
+  * endsWith \<dns_or_ip\>
+  * contains \<dns_or_ip\>
+  * port \<port\>
+  * network \<ip_or_ip_plus_netmask\>
+* Permutation
+  * map \<ip_or_ip_plus_netmask\>
+  * to \<ip_or_ip_plus_netmask\>
+* Action (end-state)
+  * via \<ssh_tunnel_name\>
+  * resolveDNS
+
+#### Condition
+
+If one or more condition is specified in a rule row, ALL conditions must be met for the rule to apply. 
+
+If there are no conditions in a rule, the rule will always match. 
+
+#### Permutations
+
+Permutations change the hostname or IP address to connect to. 
+
+For example, given the rule: 
+
+    map 10.0.0.10 to 20.0.0.20
+
+when a connection is made to 10.0.0.10, SmartSOCKSProxy will actually connect to 20.0.0.20. Also, subsequent rules will use 20.0.0.20 when evaluating Criteria. 
+
+Other examples:
+
+    map 10.0.0.0/8 to 20.0.0.0/8   # Any address of the form 10.x.y.z will be changed to 20.x.y.z
+    
 
 ### Peculiarities
 
@@ -154,10 +245,10 @@ If the IP address resides within a remote segmented network:
 
 ### SmartSOCKSProxy Non-Goals: 
  
-  - code doesn't need to be perfect; the project shouldn't grow very large
+  - code doesn't need to be a work of art; the project is unlikely to grow large
   - threading is used so the SOCKS5 protocol can be programmed using blocking I/O. This makes the SOCKS5 implementation 
     brittle, but easy to implement and read. 
-  - IPv6 is unsupported
+  - IPv6 is unsupported currently
     - although most of the functionality is there, IPv6 is untested and not implemented in several areas. 
 
 ## Development Notes
@@ -167,7 +258,7 @@ If the IP address resides within a remote segmented network:
 Useful tools:
 
   - audit open file handles with "lsof -c smartsocksproxy"
-  - "Instruments" is a built-in Mac profiler. Easy to use. Identifies what parts of code are consuming CPU.
+  - "Instruments" is a built-in Mac profiler and resource inspector. Easy to use. Identifies what parts of code are consuming CPU, file handles, etc.
 
  
 ## Inspiration: 
