@@ -141,6 +141,13 @@ int socks_connect(proxy_instance *proxy, service *srv, client_connection *con, i
       debug("Attempting to connect to ssh_tunnel %s on port %i",tun->name, tun->socks_port);
       connection_created = connect_via_ssh_socks5(con, tun, failure_type);
     }
+
+    if (!connection_created && *failure_type == SOCKS5_REPLY_CONNECTION_REFUSED) {
+      trace("Connection Refused.");
+      ok=0;
+      attempt_to_connect=0;
+      set_client_connection_status(con, CCSTATUS_ERR_NETWORK,"Connection Refused","Connection to remote host was refused.");
+    }
   
     if (connection_created) { 
       attempt_to_connect=0;
@@ -158,7 +165,7 @@ int socks_connect(proxy_instance *proxy, service *srv, client_connection *con, i
       if (connect_attempt >= 100) {
         trace("Connection attempt failed. Giving up.");
         ok=0;
-      } else {
+      } else if (attempt_to_connect) {
         debug("Connection attempt failed. Will try next ssh_tunnel in a few milliseconds.");
         usleep(100000);
       }

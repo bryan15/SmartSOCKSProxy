@@ -80,7 +80,6 @@ int socks5_client_get_command_response(client_connection *con, int *failure_type
   if (rc != 4) {
     if (rc == 0) { // socket unexpectedly closed
       *failure_type=SOCKS5_REPLY_CONNECTION_REFUSED;
-      set_client_connection_status(con, CCSTATUS_ERR_NETWORK,"Connection Refused","Connection to remote host was refused. But SSH appears to be working fine.");
     }
     return 0;
   }
