@@ -1,0 +1,75 @@
+# top-level thread which spawns child SSH children and launches worker threads
+main  
+  logFilename main.log 
+  logVerbosity trace
+  ulimit 4096
+
+##################
+## Logfiles
+
+# defaults inherited by others
+logfile default
+  fileRotateCount 3
+  byteCountMax 1024000
+
+# You don't need to define logfiles unless you want to change 
+# settings from the default. I put them here because... ocd?
+logfile os.log
+logfile web.log
+logfile firefox.log
+logfile port_forward.log
+
+
+##################
+## SSH Tunnels 
+
+# defaults inherited by others
+ssh default
+  logFilename -      # currently ignored, shows up in "main" log settings
+  logVerbosity trace # currently ignored, follows "main" log settings
+
+ssh networkA 
+  socksPort 18100
+  command ssh -D 18100 -N -o "ServerAliveInterval=5" bastionA.example.com
+
+ssh networkB
+  socksPort 18101
+  command ssh -D 18101 -N -o "ServerAliveInterval=5" bastionB.example.com
+
+
+##################
+## Proxy 
+
+# defaults inherited by others
+proxy default
+  logFilename -
+  logVerbosity debug
+
+proxy os
+  logVerbosity trace
+  logFilename os.log
+  socksServer 127.0.0.1:11080
+  route via direct
+
+proxy webConsole
+  logFilename web.log
+  httpServer 10080:${SMARTSOCKSPROXY_HOME}/html
+
+proxy MyRoutingProxy
+  logFilename my_routing_proxy.log
+  socksServer 127.0.0.1:11084
+  route endsWith example.com via networkA
+  route network 10.0.0.0/8 via networkB
+  route via direct
+
+proxy portForwards
+  logFilename port_forward.log
+  logVerbosity trace
+  portForward 18192:somehost1.example.com:8192
+  portForward 18194:somehost2.example.com:8194
+  route endsWith example.com via networkA
+  route network 10.0.0.0/8 via networkB
+  route via direct
+
+
+

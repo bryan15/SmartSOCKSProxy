@@ -1,13 +1,17 @@
 #!/bin/bash
 
-PORT_FORWARD=""
-WORKING_DIR="$HOME/simplesocksproxy"
+# from https://stackoverflow.com/questions/59895/get-the-source-directory-of-a-bash-script-from-within-the-script-itself
+export SMARTSOCKSPROXY_HOME="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+export HTML=$SMARTSOCKSPROXY_HOME/html
 
-pkill simplesocksproxy
-ps ax | grep -v grep | grep 'ssh -D' | awk '{ print $1 }' | xargs -n 1000 kill -9
-$WORKING_DIR/simplesocksproxy \
-  -v -v -v \
-  -d \
-  -l $WORKING_DIR/proxy.log \
-  $PORT_FORWARD
+cd $SMARTSOCKSPROXY_HOME
+
+pkill smartsocksproxy
+ps ax | grep -v grep | grep 'ssh -D' | awk '{ print $1 }' | xargs -n 100 kill -9
+
+if [ "x$1" == "xbackground" ]; then
+  exec nohup ./smartsocksproxy -v trace -c ssp.conf -d 2>&1 > /dev/null &
+else
+  exec ./smartsocksproxy -v trace -c ssp.conf
+fi
 

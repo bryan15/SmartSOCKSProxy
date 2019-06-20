@@ -116,7 +116,11 @@ The config file parser supports primitive environment variable substitution; ${v
 
 ### Rules 
 
-Each rule consists of three parts: Condition, Permutation and Action.
+Rules can be created one-at-a-time in abe.conf using "route" directive, included from a file using "routeFile" directive, or entire directories and included using "routeDir" directive.
+
+"routeDir" will read *all* files in the directory. File names are sorted alphabetically and read in-order.
+
+Each rule has three sections which may or may not be present:
 
 * Criteria - all criteria must be satisfied for the rule to take effect
   * is \<dns_or_ip\>
@@ -265,4 +269,46 @@ Useful tools:
 
   - https://github.com/armon/go-socks5/blob/master/socks5.go
   - https://github.com/isayme/socks5/blob/v2/src/callback.c
+
+
+## What
+
+SmartSOCKSProxy couples a rules engine with an SSH process manager to perform automatic 
+SSH tunnel creation and connection routing. SmartSOCKSProxy appears as a SOCKS4/SOCKS5 server to client applications (browser, java apps, etc). 
+
+For applications which do not support SOCKS4/5, SmartSOCKSProxy also supports static port-forwards. 
+
+## How
+ 
+* Nuclear option: Small daemon written in C
+* reads configuration from files
+* manages SSH connecitons
+* acts as a SOCKS4/5 server to Java & applications
+
+
+### Why C? Design Goals
+
+* fast & lightweight, unobtrusive (eliminates Java)
+* SmartSOCKSProxy binary is 121K in size
+* bomb-proof, never crashes (eliminates Perl, Python, Ruby)
+* easily available to developers on MacOS
+* if had to do over, would consider Go
+
+### What is SOCKS?
+
+https://www.ietf.org/rfc/rfc1928.txt
+
+### Threading Model
+
+The threading model was designed to minimize communication between threads, maximize single-thread speed, and make coding easier by exploiting blocking system calls. 
+
+Each network connection is handled by its own thread. The thread lives only as long as the network connection. 
+
+To see responsibilities of main(), see https://github.com/bryan15/SmartSOCKSProxy/blob/master/server.c#L186
+
+## For Java:
+
+Add the following to the JVM command-line:
+
+    -DsocksProxyHost=127.0.0.1 -DsocksProxyPort=11082
 
