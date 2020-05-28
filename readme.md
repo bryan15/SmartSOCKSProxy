@@ -1,11 +1,22 @@
 # SmartSOCKSProxy
 
-Routing between network segments is often impaired by NAT or firewalls for security. 
-Gaining access to services behind the firewall requires an authenticated tunnel such as SSH.
+SmartSOCKSProxy couples a rules engine with an SSH process manager to perform automatic 
+SSH tunnel creation and connection routing. SmartSOCKSProxy appears as a SOCKS4/SOCKS5 server to client applications (browser, java apps, etc). 
 
-This works fine until we try to access services in multiple network segments at the same time. It's not
+For applications which do not support SOCKS4/5, SmartSOCKSProxy also supports static port-forwards. 
+
+## Why
+
+In environments where routing between network segments is impaired by NAT or firewalls for security, software developers or other users
+often have to manually setup SSH port-forwards aka "SSH tunnels" to access services behind the firewall; to connect to the service, 
+the browser or application must connect to the forwarded port on localhost. This has a lot of downsides, especially around DNS;
+the effective DNS for the service now needs to map to 127.0.0.1.
+
+Instead of using SSH port-forward tunnels, we could use SSH SOCKS mode. 
+
+But SOCKS only works until there are 2 or more remote network segments we try to reach at the same time. It's not
 obvious how to route any given connection - should it be routed directly to the IP address,
-use SSH as a proxy? Who is responsible for deciding how to route connections, and
+use SSH as a proxy? Which proxy? Who is responsible for deciding how to route connections, and
 who is responsible for starting and stoping SSH sessions?
 
 SmartSOCKSProxy, that's who.
@@ -116,7 +127,7 @@ The config file parser supports primitive environment variable substitution; ${v
 
 ### Rules 
 
-Rules can be created one-at-a-time in abe.conf using "route" directive, included from a file using "routeFile" directive, or entire directories and included using "routeDir" directive.
+Rules can be created one-at-a-time in the conf file using "route" directive, included from a file using "routeFile" directive, or entire directories and included using "routeDir" directive.
 
 "routeDir" will read *all* files in the directory. File names are sorted alphabetically and read in-order.
 
@@ -270,13 +281,6 @@ Useful tools:
   - https://github.com/armon/go-socks5/blob/master/socks5.go
   - https://github.com/isayme/socks5/blob/v2/src/callback.c
 
-
-## What
-
-SmartSOCKSProxy couples a rules engine with an SSH process manager to perform automatic 
-SSH tunnel creation and connection routing. SmartSOCKSProxy appears as a SOCKS4/SOCKS5 server to client applications (browser, java apps, etc). 
-
-For applications which do not support SOCKS4/5, SmartSOCKSProxy also supports static port-forwards. 
 
 ## How
  
