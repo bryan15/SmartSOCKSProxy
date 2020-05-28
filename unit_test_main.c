@@ -8,10 +8,12 @@
 #include"unit_test_config_file.h"
 #include"unit_test_host_id.h"
 #include"unit_test_string2.h"
+#include"thread_local.h"
 
 int main(int argc, char **argv) {
 
   log_init();
+  thread_local_init();
 
   printf("----------\n");
   printf("Unit Tests\n");
